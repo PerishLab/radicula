@@ -1,5 +1,18 @@
 #![forbid(unsafe_code)]
 
+mod factory;
+mod gate;
+mod model;
+mod permit;
+mod state;
+mod wait;
+
+pub use factory::Factory;
+pub use gate::Gate;
+pub use model::{Error, Failure, Policy, Status};
+pub use permit::{Held, Permit};
+pub use wait::{Cancellation, Wait};
+
 pub use std::fs::TryLockError;
 use std::{fs::File, io};
 
