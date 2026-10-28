@@ -1,3 +1,6 @@
+#[path = "process/scoped.rs"]
+mod scoped;
+
 mod support;
 
 use radicula_lock::{Mode, lock, unlock};

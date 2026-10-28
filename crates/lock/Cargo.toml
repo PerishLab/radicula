@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 license-file.workspace = true
 repository.workspace = true
-description = "Shared and exclusive file-lock primitives over caller-owned files"
+description = "Scoped execution coordination over memory and caller-owned files"
 readme = "README.md"
 publish = ["perish"]
+
