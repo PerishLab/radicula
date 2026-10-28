@@ -1,0 +1,25 @@
+[identity]
+ns = "radicula"
+
+[dependency]
+root = true
+
+[release]
+authority = "https://releases.radicula.perish.uk"
+
+[release.cargo]
+registry = "perish"
+packages = ["radicula-lock"]
+
+[[layout.seat]]
+path = "crates/*"
+anchor = ["Cargo.toml"]
+note = "Orthogonal public root libraries with their own API contracts and tests."
+
+[[layout.seat]]
+path = ".cargo"
+note = "Public domain registry configuration."
+
+[[layout.file]]
+name = ["Cargo.toml", "Cargo.lock"]
+note = "Virtual workspace and the repository's unified dependency resolution."
