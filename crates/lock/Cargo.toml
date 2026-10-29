@@ -10,9 +10,14 @@ readme = "README.md"
 publish = ["perish"]
 
 [features]
+tokio = ["dep:tokio"]
 redis = []
 macros = ["dep:radicula-lock-macros"]
 
 [dependencies]
+tokio = { version = "1", optional = true, features = ["rt", "sync", "time", "macros"] }
 radicula-lock-macros = { workspace = true, optional = true }
 
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros", "test-util"] }

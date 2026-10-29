@@ -1,7 +1,7 @@
 # radicula-lock
 
 Scoped execution coordination over memory, caller-opened files and Redis.
-Without the `macros` feature, the runtime has no dependencies. Method attributes
+With neither `macros` nor `tokio`, the runtime has no dependencies. Method attributes
 add a compile-time adapter. Existing whole-file primitives remain available
 with their original signatures.
 
@@ -125,11 +125,10 @@ not acquire or invoke the closure. Rust abort, process termination and deliberat
 forgotten futures do not run this cleanup. Business outputs and release failures
 use the same `Failure` protocol as synchronous execution.
 
-Runtime-specific waiting, timers and managed blocking workers remain separate
-pending capabilities in PerishLab/radicula#7. This package exposes no Tokio
-feature yet. Immediate whole-file admission still performs the operating-system
-file operation; the file resolver is synchronous and must not perform unbounded
-work on an executor thread.
+Select the explicit feature-gated Tokio adapter below for runtime waiting,
+timers and managed blocking workers. Runtime-free immediate whole-file admission
+still performs the operating-system file operation; the file resolver is
+synchronous and must not perform unbounded work on an executor thread.
 
 ## Object lifetime and explicit ownership
 
@@ -173,8 +172,9 @@ admission or release failure. Panic is propagated through normal cleanup.
 The handler runs outside the business region and may inspect a retained output
 on release failure. Call-site argument evaluation remains outside the body.
 
-An async function uses the same runtime-independent adapter, with the immediate
-admission restriction above. Dropping its unpolled future does not evaluate the
+An async function uses the selected gate's asynchronous adapter. An ordinary
+gate retains runtime-free immediate admission; selecting `gate.tokio()` uses
+the feature-gated Tokio waiting and cleanup protocol. Dropping its unpolled future does not evaluate the
 gate or run the body. Cancellation destroys its body future before releasing
 admission. Const functions cannot use the attribute. The technical macro crate
 shares this capability's version and release; its packaged README describes the
@@ -289,3 +289,36 @@ leave partial remote state; such a result is unconfirmed and cannot start work.
 Key metadata is persistent and scripts purge expired entries on admission.
 Operators must bound participating clients and capacity; this is not a promise
 of bounded server execution time for an unlimited shared-reader population.
+
+## Tokio execution
+
+Enable `tokio` and select `gate.tokio()` explicitly. The existing runtime-free
+`asynchronous()` adapter retains its immediate-admission contract. The Tokio
+adapter supports admission waiting, cancellation and timeout, and uses Tokio
+for its timers and blocking business tasks. It rejects admission outside a
+running Tokio runtime. Its async `guard` accepts local non-`Send` futures.
+
+Bind file gates before entering the async execution region: factory and gate
+configuration remains synchronous. File attempts and cleanup run on a
+library-owned carrier worker, so those OS
+operations never run on the executor. Dropping an execution destroys its body
+before queuing permit cleanup. The library retains the worker and permit until
+that cleanup runs, including when the caller cancels or the Tokio runtime has
+already gone away. A cancelled in-flight admission cannot later run the body;
+any late permit is returned through the same owned cleanup protocol. Destruction
+cannot await an OS operation: the gate remains active until actual cleanup, and
+release failures remain in `status().fault`. Ordinary successful `guard` awaits
+release and retains business output alongside any release failure.
+
+`adapter.blocking(wait, closure).await` transfers the permit into the actual
+blocking worker. Cancelling or timing out its outer future does not terminate
+that worker and does not release its permit early. The closure and its cleanup
+finish before the permit ends. Business panics propagate through normal cleanup.
+An admission timeout is separate from a business execution deadline and does
+not make an OS operation interruptible.
+
+An acquired Tokio permit supports `during`, `attach` and asynchronous `release`.
+An async method attribute can select the same adapter with
+`#[guard(gate = gate.tokio(), error = handler)]`; its gate expression is still
+evaluated once. Redis remains a separate synchronous carrier and has no Tokio
+adapter in this release.

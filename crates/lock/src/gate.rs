@@ -9,6 +9,11 @@ pub struct Gate {
 }
 
 impl Gate {
+    #[cfg(feature = "tokio")]
+    pub fn tokio(&self) -> crate::tokio::Tokio {
+        crate::tokio::Tokio::new(self.clone())
+    }
+
     pub fn asynchronous(&self) -> Async {
         Async(self.clone())
     }

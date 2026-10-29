@@ -28,6 +28,23 @@ pub struct Wait {
 }
 
 impl Wait {
+    #[cfg(feature = "tokio")]
+    pub(crate) fn budget(&self) -> Option<Duration> {
+        self.timeout
+    }
+
+    pub(crate) fn check(&self) -> Result<(), Error> {
+        if self
+            .cancellation
+            .as_ref()
+            .is_some_and(Cancellation::cancelled)
+        {
+            Err(Error::Cancelled)
+        } else {
+            Ok(())
+        }
+    }
+
     pub(crate) fn eager(&self) -> bool {
         self.immediate
     }
@@ -76,15 +93,7 @@ pub(crate) struct Deadline<'a> {
 
 impl Deadline<'_> {
     pub fn check(&self) -> Result<(), Error> {
-        if self
-            .wait
-            .cancellation
-            .as_ref()
-            .is_some_and(Cancellation::cancelled)
-        {
-            return Err(Error::Cancelled);
-        }
-        Ok(())
+        self.wait.check()
     }
 
     pub fn pause(&self) -> Result<Duration, Error> {
