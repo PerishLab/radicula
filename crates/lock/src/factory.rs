@@ -15,6 +15,11 @@ pub struct Factory {
 }
 
 impl Factory {
+    #[cfg(feature = "redis")]
+    pub fn redis(config: crate::redis::Config) -> Result<crate::redis::Factory, Error> {
+        crate::redis::Factory::connect(config)
+    }
+
     pub fn memory() -> Self {
         Self {
             entries: Arc::default(),

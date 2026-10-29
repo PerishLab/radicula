@@ -5,6 +5,10 @@ mod factory;
 mod gate;
 mod model;
 mod permit;
+mod scope;
+
+#[cfg(feature = "redis")]
+pub mod redis;
 mod state;
 mod wait;
 
