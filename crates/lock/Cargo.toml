@@ -9,3 +9,9 @@ description = "Scoped execution coordination over memory and caller-owned files"
 readme = "README.md"
 publish = ["perish"]
 
+[features]
+macros = ["dep:radicula-lock-macros"]
+
+[dependencies]
+radicula-lock-macros = { workspace = true, optional = true }
+
