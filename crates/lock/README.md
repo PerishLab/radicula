@@ -1,8 +1,9 @@
 # radicula-lock
 
 Scoped synchronous and asynchronous execution coordination over memory and caller-opened files.
-The runtime has no third-party dependencies. Existing
-whole-file primitives remain available with their original signatures.
+Without the `macros` feature, the runtime has no dependencies. Method attributes
+add a compile-time adapter. Existing whole-file primitives remain available
+with their original signatures.
 
 | API | Behavior |
 | --- | --- |
@@ -151,6 +152,35 @@ destroys the constructed future before releasing admission.
 `permit.release()` is available when the caller needs
 an explicit cleanup result. Deliberately leaking/forgetting a permit or held
 value prevents its normal destruction.
+
+## Method attributes
+
+Enable the `macros` feature to use the same protocol on a function or method:
+
+```rust
+use radicula_lock::{Gate, guard};
+
+#[guard(gate = gate, error = |_| Err("coordination"))]
+fn increment(gate: &Gate, value: usize) -> Result<usize, &'static str> {
+    Ok(value + 1)
+}
+```
+
+The gate expression is evaluated once and cloned before admission, retaining
+the caller's domain and policy. The macro never constructs a new factory or
+capacity. A function's signature and business return type `R` stay intact;
+business errors, `?` and early returns remain within its protected body.
+The required error handler receives `Failure<R>` and returns `R` only for
+admission or release failure. Panic is propagated through normal cleanup.
+The handler runs outside the business region and may inspect a retained output
+on release failure. Call-site argument evaluation remains outside the body.
+
+An async function uses the same runtime-independent adapter, with the immediate
+admission restriction above. Dropping its unpolled future does not evaluate the
+gate or run the body. Cancellation destroys its body future before releasing
+admission. Const functions cannot use the attribute. The technical macro crate
+shares this capability's version and release; its packaged README describes the
+argument and evaluation contract.
 
 ## Whole-file factory
 
