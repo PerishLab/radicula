@@ -16,7 +16,7 @@ impl Permit {
     }
 
     pub fn run<T>(self, action: impl FnOnce() -> T) -> Result<T, Failure<T>> {
-        self.finish(action())
+        crate::scope::run(self, action)
     }
 
     pub fn during<F: Future>(
@@ -34,10 +34,7 @@ impl Permit {
     }
 
     pub(crate) fn finish<T>(self, output: T) -> Result<T, Failure<T>> {
-        match self.release() {
-            Ok(()) => Ok(output),
-            Err(error) => Err(Failure::Release { output, error }),
-        }
+        crate::scope::finish(self, output)
     }
 }
 
@@ -50,12 +47,12 @@ impl Drop for Permit {
 }
 
 #[must_use]
-pub struct Held<T> {
-    value: T,
-    _permit: Permit,
+pub struct Held<T, P = Permit> {
+    pub(crate) value: T,
+    pub(crate) _permit: P,
 }
 
-impl<T> Deref for Held<T> {
+impl<T, P> Deref for Held<T, P> {
     type Target = T;
 
     fn deref(&self) -> &T {
@@ -63,8 +60,14 @@ impl<T> Deref for Held<T> {
     }
 }
 
-impl<T> Held<T> {
+impl<T, P> Held<T, P> {
     pub fn edit(&mut self) -> &mut T {
         &mut self.value
+    }
+}
+
+impl crate::scope::Release for Permit {
+    fn release(self) -> Result<(), Error> {
+        Permit::release(self)
     }
 }

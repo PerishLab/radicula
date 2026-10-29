@@ -1,6 +1,6 @@
 # radicula-lock
 
-Scoped synchronous and asynchronous execution coordination over memory and caller-opened files.
+Scoped execution coordination over memory, caller-opened files and Redis.
 Without the `macros` feature, the runtime has no dependencies. Method attributes
 add a compile-time adapter. Existing whole-file primitives remain available
 with their original signatures.
@@ -86,9 +86,7 @@ There is no wall-clock scheduling bound. Gate defaults are set by `gate.wait`;
 `gate.with(wait, closure)` overrides them for one call.
 
 An admission timeout is distinct from a lease expiry or an execution budget.
-These carriers have no lease, renewal or forced execution timeout. A future
-Redis carrier must declare its own supported protocol; these APIs do not imply
-that arbitrary expiry and renewal settings already work.
+These carriers have no lease, renewal or forced execution timeout. The optional Redis carrier below has its own explicit lease protocol.
 
 Synchronous `guard` protects execution of its closure. Returning a future only
 constructs that future; it does not execute its body under protection. Child work
@@ -204,3 +202,90 @@ handle clone remains open. The platform and filesystem restrictions of the
 primitive API still apply. Process exit/abort does not run Rust cleanup; recovery
 then follows the OS handle and inheritance rules. Successful scoped cleanup is
 not a promise that an inherited live handle can never prolong an OS lock.
+
+## Redis execution regions
+
+Enable `redis` for the synchronous `Factory::redis(config)` constructor. This
+carrier adds no package dependency. It returns `redis::Factory`; its gates and
+permits deliberately expose synchronous execution only. Ordinary method
+attributes work with these gates; async method attributes, `asynchronous` and
+`during` are unavailable for Redis. Do not call synchronous admission, cleanup
+or `guard` on an executor thread. A future returned from a sync body is outside
+its protected execution. Moving work to a thread requires that thread to retain
+the permit until the body and its destruction finish.
+
+```rust,no_run
+use radicula_lock::{Factory, Policy, Wait, redis::Config};
+use std::time::Duration;
+
+let config = Config::new("127.0.0.1:6379".parse().unwrap(), "scheduler");
+let domain = Factory::redis(config).unwrap();
+let jobs = domain.gate("workers", Policy::limit(4).unwrap()).unwrap()
+    .wait(Wait::timeout(Duration::from_secs(2)));
+let output = jobs.guard(|| Ok::<_, &'static str>(42));
+```
+
+All participants must use the same server, database, namespace, key and protocol.
+Independent factories and processes then share capacity. `Policy::Readers`
+admits shared readers together and excludes an exclusive writer. Each permit
+has its own remote identity; local aggregation never bypasses the remote count.
+The policy binding and fencing sequence persist even when no lease remains.
+Namespaces and keys are byte-exact UTF-8, hex-encoded without hash collisions.
+Never delete or mutate the protocol's `radicula:lock:v1:*` keys while its domain
+can execute. Caller business data is not stored or interpreted by this library.
+
+The supported backend is Redis 7 or newer, one static primary endpoint, cluster
+disabled and `maxmemory-policy noeviction`. The caller supplies an explicit
+socket address, not DNS discovery. The transport is plaintext RESP over TCP;
+optional password or ACL-user credentials are redacted from Debug. Configure a
+trusted transport boundary as appropriate. Sentinel, replication failover,
+cluster routing and TLS are unsupported. A single endpoint is not a proof of
+safe replication or failover. Server configuration, ACLs and protocol-key
+integrity must remain under the cooperating domain's control.
+
+A factory starts one managed renewal worker. Default lease duration is 30 seconds,
+renewal interval 5 seconds, complete RPC budget 100 milliseconds and local active
+lease budget 32. `Config::lease(duration, renewal)`, `io(duration)` and `slots(n)`
+set these independently; `None` disables renewal. Validation requires a lease
+at least four complete IO cycles across the local slot budget, and renewal at
+most one quarter of the lease. The local slot budget is an additional admission
+limit, not the domain's remote capacity. Every RPC budget includes connection,
+authentication, database selection, command submission and reply. Replies and
+commands are bounded to 64 KiB; arrays and nesting are bounded as well.
+
+Admission waits and cancellation govern retries before execution. One in-flight
+RPC can consume its entire IO budget beyond a wait deadline or cancellation;
+there is no wall-clock executor scheduling bound. Lease duration governs remote
+ownership, not execution time. There is no automatic execution timeout or forced
+termination of a Rust closure. Renewals compare server epoch, owner identity and
+unexpired membership; they never recreate an expired lease. Correct lease timing
+requires the server's wall clock to advance consistently with the client's
+monotonic clock. Arbitrary clock jumps, suspend and unbounded scheduling delay
+cannot establish execution exclusivity through a time lease alone.
+
+`permit.check()` and `permit.fence()` refuse once the local lease is known lost.
+A failed or late renewal marks it lost permanently. The gate retains a fault and
+refuses further local admission; it never silently falls back to memory or files.
+A submitted admission without a valid reply returns `Error::Unconfirmed` and
+never invokes the body. Remote admission may nevertheless have happened; its
+lease expires without renewal. Failed release is observable through the guard's
+`Failure::Release` and `status().fault`; the business output is retained. Drop
+attempts bounded cleanup, including during unwinding, and never renews a permit
+once release starts. It cannot turn an unconfirmed remote release into success.
+
+Lease loss does not stop old work. That work may still mutate business state
+while another participant has a new lease. A fencing-aware destination must
+check the supplied `Fence` if the workload requires rejection of stale writes.
+The server generates each identity with its run epoch and an exact integer
+sequence; sequences are not converted through Lua floating-point numbers.
+`Fence::follows` compares sequences only within one epoch and refuses across
+epochs. Redis restart changes its epoch, invalidating existing factories and
+permits; recovery requires explicit creation of a new factory after review.
+There is no globally monotonic fence across restart, data loss or failover.
+
+The scripts execute atomically relative to other Redis commands, but a script
+error does not certify rollback. Protocol corruption or resource exhaustion can
+leave partial remote state; such a result is unconfirmed and cannot start work.
+Key metadata is persistent and scripts purge expired entries on admission.
+Operators must bound participating clients and capacity; this is not a promise
+of bounded server execution time for an unlimited shared-reader population.

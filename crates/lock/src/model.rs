@@ -19,6 +19,9 @@ impl Policy {
 #[derive(Clone, Debug)]
 pub enum Error {
     Busy,
+    Lost,
+    Epoch,
+    Unconfirmed(Arc<io::Error>),
     Timeout,
     Cancelled,
     Invalid(&'static str),
@@ -31,6 +34,11 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Lost => f.write_str("execution lease is no longer valid"),
+            Self::Epoch => {
+                f.write_str("Redis server epoch changed; create a new factory after review")
+            }
+            Self::Unconfirmed(error) => write!(f, "admission outcome is unknown: {error}"),
             Self::Busy => f.write_str("execution gate is busy"),
             Self::Timeout => f.write_str("execution admission timed out"),
             Self::Cancelled => f.write_str("execution admission was cancelled"),
@@ -45,7 +53,9 @@ impl fmt::Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::Io(error) | Self::Uncertain(error) => Some(error.as_ref()),
+            Self::Io(error) | Self::Uncertain(error) | Self::Unconfirmed(error) => {
+                Some(error.as_ref())
+            }
             _ => None,
         }
     }
