@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+mod asynchronous;
 mod factory;
 mod gate;
 mod model;
@@ -7,6 +8,7 @@ mod permit;
 mod state;
 mod wait;
 
+pub use asynchronous::Async;
 pub use factory::Factory;
 pub use gate::Gate;
 pub use model::{Error, Failure, Policy, Status};

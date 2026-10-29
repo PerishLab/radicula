@@ -1,6 +1,6 @@
 # radicula-lock
 
-Scoped synchronous execution coordination over memory and caller-opened files.
+Scoped synchronous and asynchronous execution coordination over memory and caller-opened files.
 The runtime has no third-party dependencies. Existing
 whole-file primitives remain available with their original signatures.
 
@@ -92,9 +92,45 @@ that arbitrary expiry and renewal settings already work.
 Synchronous `guard` protects execution of its closure. Returning a future only
 constructs that future; it does not execute its body under protection. Child work
 must finish within the region or own a transferred permit until it actually
-finishes. Arbitrary detached work is outside the declared region. Asynchronous
-execution and managed blocking workers are separate pending capabilities in
-PerishLab/radicula#7; this package does not expose a Tokio feature yet.
+finishes. Arbitrary detached work is outside the declared region.
+
+## Asynchronous execution
+
+`gate.asynchronous().guard(|| async { ... }).await` acquires before invoking
+the closure and protects the future through execution and destruction. The
+adapter owns a clone of the gate and works with any executor, including
+non-`Send` and non-`Unpin` futures. It does not spawn tasks or require a runtime.
+
+```rust
+use radicula_lock::{Factory, Policy, Wait};
+
+# async fn example() {
+let domain = Factory::memory();
+let jobs = domain.gate("background-jobs", Policy::limit(4).unwrap()).unwrap()
+    .wait(Wait::immediate());
+let result = jobs.asynchronous().guard(|| async { Ok::<_, &'static str>(42) }).await;
+assert_eq!(result.unwrap(), Ok(42));
+# }
+```
+
+This adapter currently accepts only `Wait::immediate()`. It rejects timeout and
+unbounded waits explicitly with `Error::Unsupported`, rather than blocking the
+executor. `gate.asynchronous().with(wait, closure)` overrides the gate default.
+An already-cancelled admission token prevents execution. A pending body remains
+protected until completion or cancellation by dropping its future.
+
+The body future is destroyed before releasing its permit on normal completion,
+panic and cancellation. Poll panics release protection before propagating even
+when the executor retains the failed wrapper. Dropping an unpolled guard does
+not acquire or invoke the closure. Rust abort, process termination and deliberately
+forgotten futures do not run this cleanup. Business outputs and release failures
+use the same `Failure` protocol as synchronous execution.
+
+Runtime-specific waiting, timers and managed blocking workers remain separate
+pending capabilities in PerishLab/radicula#7. This package exposes no Tokio
+feature yet. Immediate whole-file admission still performs the operating-system
+file operation; the file resolver is synchronous and must not perform unbounded
+work on an executor thread.
 
 ## Object lifetime and explicit ownership
 
@@ -108,7 +144,11 @@ This wrapper does not synchronize other independent aliases of a business value.
 explicit lifetime transfer. Dropping it performs cleanup automatically; callers
 do not need a compensating unlock on errors. `permit.run(closure)` provides the
 same scoped completion handling as `guard`, and `permit.attach(value)` ties
-its lifetime to a value. `permit.release()` is available when the caller needs
+its lifetime to a value. `permit.during(|| async { ... })` transfers an already
+acquired permit into an asynchronous execution. It invokes the future constructor
+immediately under protection, so even dropping this execution without polling
+destroys the constructed future before releasing admission.
+`permit.release()` is available when the caller needs
 an explicit cleanup result. Deliberately leaking/forgetting a permit or held
 value prevents its normal destruction.
 
