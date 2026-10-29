@@ -90,3 +90,45 @@ fn contents() {
     drop(factory);
     drop(file);
 }
+
+#[test]
+fn asynchronous() {
+    use std::{
+        future::Future,
+        task::{Context, Poll, Waker},
+    };
+
+    let seat = Seat::new();
+    let factory = factory(&seat);
+    let gate = factory
+        .gate("work", Policy::EXCLUSIVE)
+        .unwrap()
+        .wait(Wait::immediate());
+    let mut context = Context::from_waker(Waker::noop());
+    let mut task = Box::pin(gate.asynchronous().guard(|| async {
+        assert_eq!(seat.probe(Mode::Exclusive, "std"), 75);
+        std::future::pending::<()>().await;
+    }));
+    assert!(task.as_mut().poll(&mut context).is_pending());
+    assert_eq!(seat.probe(Mode::Exclusive, "std"), 75);
+    drop(task);
+    assert_eq!(seat.probe(Mode::Exclusive, "std"), 0);
+    let mut task = Box::pin(gate.asynchronous().guard(|| async {
+        assert_eq!(seat.probe(Mode::Exclusive, "std"), 75);
+        42
+    }));
+    assert!(matches!(
+        task.as_mut().poll(&mut context),
+        Poll::Ready(Ok(42))
+    ));
+    assert_eq!(seat.probe(Mode::Exclusive, "std"), 0);
+    let mut task = Box::pin(gate.asynchronous().guard(|| async {
+        assert_eq!(seat.probe(Mode::Exclusive, "std"), 75);
+        panic!("business panic");
+    }));
+    assert!(
+        std::panic::catch_unwind(AssertUnwindSafe(|| { task.as_mut().poll(&mut context) }))
+            .is_err()
+    );
+    assert_eq!(seat.probe(Mode::Exclusive, "std"), 0);
+}

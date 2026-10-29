@@ -28,6 +28,10 @@ pub struct Wait {
 }
 
 impl Wait {
+    pub(crate) fn eager(&self) -> bool {
+        self.immediate
+    }
+
     pub fn forever() -> Self {
         Self::default()
     }

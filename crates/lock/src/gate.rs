@@ -1,4 +1,4 @@
-use crate::{Error, Failure, Held, Mode, Permit, Policy, Status, Wait, state::Entry};
+use crate::{Async, Error, Failure, Held, Mode, Permit, Policy, Status, Wait, state::Entry};
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -9,6 +9,10 @@ pub struct Gate {
 }
 
 impl Gate {
+    pub fn asynchronous(&self) -> Async {
+        Async(self.clone())
+    }
+
     pub fn wait(&self, wait: Wait) -> Self {
         Self {
             wait,

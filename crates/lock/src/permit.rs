@@ -1,5 +1,5 @@
 use crate::{Error, Failure, Gate};
-use std::ops::Deref;
+use std::{future::Future, ops::Deref};
 
 #[must_use]
 pub struct Permit {
@@ -17,6 +17,13 @@ impl Permit {
 
     pub fn run<T>(self, action: impl FnOnce() -> T) -> Result<T, Failure<T>> {
         self.finish(action())
+    }
+
+    pub fn during<F: Future>(
+        self,
+        action: impl FnOnce() -> F,
+    ) -> impl Future<Output = Result<F::Output, Failure<F::Output>>> {
+        crate::asynchronous::Execution::new(self, action())
     }
 
     pub fn attach<T>(self, value: T) -> Held<T> {
