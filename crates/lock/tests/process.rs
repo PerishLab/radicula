@@ -1,3 +1,6 @@
+#[path = "process/file.rs"]
+mod file;
+
 #[path = "process/scoped.rs"]
 mod scoped;
 

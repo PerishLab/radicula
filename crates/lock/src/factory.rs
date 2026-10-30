@@ -1,4 +1,4 @@
-use crate::{Error, Gate, Mode, Policy, Wait, state::Entry};
+use crate::{Error, Gate, Mode, Policy, Wait, gate::Entry};
 use std::{
     collections::BTreeMap,
     fs::File,
@@ -25,6 +25,13 @@ impl Factory {
             entries: Arc::default(),
             open: None,
         }
+    }
+
+    pub fn file<F: std::borrow::Borrow<File>>(
+        file: F,
+        policy: Policy,
+    ) -> Result<crate::file::Gate<F>, Error> {
+        crate::file::Gate::new(file, policy)
     }
 
     pub fn files(open: impl Fn(&str) -> io::Result<File> + Send + Sync + 'static) -> Self {

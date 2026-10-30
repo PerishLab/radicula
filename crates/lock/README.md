@@ -322,3 +322,72 @@ An async method attribute can select the same adapter with
 `#[guard(gate = gate.tokio(), error = handler)]`; its gate expression is still
 evaluated once. Redis remains a separate synchronous carrier and has no Tokio
 adapter in this release.
+
+## An existing file handle
+
+`Factory::file(file, policy)` (also `file::Gate::new`) binds one already-open
+handle, without cloning it, reopening its path or changing its cursor. The handle
+must initially be unlocked; this binding cannot adopt a pre-existing OS lock. Supply
+an owned `File`, a local `&File`, or a stable wrapper implementing `Borrow<File>`.
+A wrapper must always return the same file without panicking. The binding itself is the local
+domain: create it once for the coordination lifetime and clone the gate to share
+its state. There is no string key or global handle registry for this one-file
+binding. Distinct bindings over the same OS lock owner, cloned/inherited handles,
+manual primitive calls or external unlocks must not compete with that domain.
+Use independent OS opens for independent participants; the caller still secures
+and checks the path and identity.
+
+```rust,no_run
+use radicula_lock::{Factory, Policy};
+use std::{fs::OpenOptions, io::Write};
+
+let file = OpenOptions::new().read(true).write(true).open("ledger")?;
+let gate = Factory::file(&file, Policy::EXCLUSIVE)?;
+let output = gate.guard(|| gate.file().write_all(b"entry\n"))?;
+output?;
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
+`gate.file()` and `permit.file()` expose the original `&File`. Access through
+these references is not automatically protected: keep protected IO inside a
+region or the permit's lifetime. Neither shared admission nor exclusive
+admission grants a Rust mutable borrow of an independently aliased business
+value. File content recovery and an outer `Mutex`'s poison policy remain caller
+responsibilities. The gate adds no implicit seek, flush, sync, rollback or close.
+
+A persistent spool can store `Mutex<file::Gate<File>>` in place of `Mutex<File>`
+and run its append operation inside `gate.guard`. This retains the domain and
+release fault even when an append panics and the outer mutex becomes poisoned.
+A local borrowed binding must likewise be retained for its coordination lifetime.
+An uncertain release quarantines that binding and every clone; dropping it and
+constructing another does not certify recovery of the original handle. Review
+and establish release/close recovery explicitly before rebinding. The borrowed
+file remains open after successful release or destruction of the binding.
+
+An owned `file::Permit<File>` can be stored directly in a session object. It
+keeps the same original handle alive after the gate is dropped, exposes it for
+session IO, and releases when the session ends. `run`, `attach`, `during`, `hold`,
+`wait`, `shared`, `status`, the `Failure` output-preservation protocol and method
+attributes follow the other execution gates. A borrow cannot outlive its owner:
+
+```compile_fail
+use radicula_lock::{Factory, Policy};
+fn invalid() -> radicula_lock::file::Gate<&'static std::fs::File> {
+    let file = std::fs::File::open("ledger").unwrap();
+    Factory::file(&file, Policy::EXCLUSIVE).unwrap()
+}
+```
+
+This binding supports synchronous immediate, timeout and cancellation-aware
+admission, exclusive or reader/writer policy; capacity greater than one is
+rejected. Nested exclusive admission uses the same busy/finite-wait semantics,
+not reentrancy. It has no lease or renewal. The runtime-independent
+`asynchronous()` adapter supports **immediate admission only**, including local
+non-`Send` futures and destruction before release on completion, poll panic and
+cancellation. Its file operations run synchronously on the polling thread. There
+is no Tokio worker adapter for these potentially borrowed handles: use the
+existing owned `Factory::files` Tokio adapter when its separate-handle semantics
+are appropriate, or explicitly transfer an owned file permit into actual
+blocking work. A timeout of that work's observer does not end its execution.
+Unwinding cleanup cannot run after Rust abort, process termination or deliberate
+forgetting; OS handle/inheritance rules remain applicable.
