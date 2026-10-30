@@ -69,8 +69,13 @@ fn spool() {
     assert_eq!(seat.probe(Mode::Exclusive, "std"), 0);
     let gate = spool.lock().unwrap_or_else(|error| error.into_inner());
     assert!(gate.status().fault.is_none());
-    gate.guard(|| assert_eq!(std::fs::read(seat.0.join("lease")).unwrap(), b"record"))
-        .unwrap();
+    gate.guard(|| {
+        gate.file().rewind().unwrap();
+        let mut contents = String::new();
+        gate.file().read_to_string(&mut contents).unwrap();
+        assert_eq!(contents, "record");
+    })
+    .unwrap();
 }
 
 #[test]
