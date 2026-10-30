@@ -5,11 +5,13 @@ mod factory;
 mod gate;
 mod model;
 mod permit;
-mod scope;
+pub(crate) use permit::scope;
 
 #[cfg(feature = "redis")]
 pub mod redis;
 mod state;
+#[cfg(feature = "tokio")]
+pub mod tokio;
 mod wait;
 
 pub use asynchronous::Async;

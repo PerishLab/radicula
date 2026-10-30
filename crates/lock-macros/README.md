@@ -26,8 +26,10 @@ successful business outputs do not pass through it. A release failure retains
 the original business output. The handler runs outside the declared business
 body; a release failure does not certify backend release.
 
-Async functions use the runtime-independent adapter and can run on Tokio or
-another executor. They currently require `Wait::immediate()`; unsupported waits
+Async functions use the selected gate's asynchronous adapter. An ordinary gate
+uses runtime-independent immediate admission on Tokio or another executor.
+Selecting `gate.tokio()` uses the runtime library's feature-gated Tokio adapter.
+For an ordinary gate, unsupported waits
 reach the same explicit error handler. Body future destruction precedes release
 on completion, panic and cancellation. Dropping an unpolled method future does
 not evaluate its gate or enter its body. Runtime-specific waiting and worker
