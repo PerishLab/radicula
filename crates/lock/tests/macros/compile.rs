@@ -38,6 +38,10 @@ impl Project {
     fn check(&self, attribute: &str, declaration: &str) -> std::process::Output {
         let source =
             format!("use coordinate::{{Gate,guard}};\n#[guard({attribute})]\n{declaration}\n");
+        self.source(&source)
+    }
+
+    fn source(&self, source: &str) -> std::process::Output {
         std::fs::write(self.0.join("src/lib.rs"), source).unwrap();
         Command::new("cargo")
             .args(["check", "--offline", "--target-dir"])
@@ -98,5 +102,23 @@ fn contract() {
         String::from_utf8_lossy(&output.stderr).contains("expected `usize`"),
         "{}",
         String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn borrow() {
+    let project = Project::new();
+    let positive = project.source("pub fn bound(file: &std::fs::File) -> coordinate::file::Gate<&std::fs::File> { coordinate::Factory::file(file, coordinate::Policy::EXCLUSIVE).unwrap() }");
+    assert!(
+        positive.status.success(),
+        "{}",
+        String::from_utf8_lossy(&positive.stderr)
+    );
+    let negative = project.source("pub fn invalid() -> coordinate::file::Gate<&'static std::fs::File> { let file = std::fs::File::open(\"ledger\").unwrap(); coordinate::Factory::file(&file, coordinate::Policy::EXCLUSIVE).unwrap() }");
+    assert!(!negative.status.success());
+    assert!(
+        String::from_utf8_lossy(&negative.stderr).contains("E0515"),
+        "{}",
+        String::from_utf8_lossy(&negative.stderr)
     );
 }

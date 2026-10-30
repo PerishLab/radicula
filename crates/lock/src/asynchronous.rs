@@ -34,13 +34,13 @@ impl Async {
     }
 }
 
-pub(crate) struct Execution<F: Future> {
+pub(crate) struct Execution<F: Future, P = Permit> {
     body: Option<Pin<Box<F>>>,
-    permit: Option<Permit>,
+    permit: Option<P>,
 }
 
-impl<F: Future> Execution<F> {
-    pub fn new(permit: Permit, body: F) -> Self {
+impl<F: Future, P> Execution<F, P> {
+    pub fn new(permit: P, body: F) -> Self {
         Self {
             body: Some(Box::pin(body)),
             permit: Some(permit),
@@ -70,7 +70,7 @@ impl<F: Future> Execution<F> {
     }
 }
 
-impl<F: Future> Future for Execution<F> {
+impl<F: Future, P: crate::scope::Release + Unpin> Future for Execution<F, P> {
     type Output = Result<F::Output, Failure<F::Output>>;
 
     fn poll(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<Self::Output> {
@@ -80,11 +80,9 @@ impl<F: Future> Future for Execution<F> {
             Ok(Poll::Ready(output)) => output,
             Err(payload) => this.unwind(payload),
         };
-        Poll::Ready(
-            this.permit
-                .take()
-                .expect("owned execution permit")
-                .finish(output),
-        )
+        Poll::Ready(crate::scope::finish(
+            this.permit.take().expect("owned execution permit"),
+            output,
+        ))
     }
 }

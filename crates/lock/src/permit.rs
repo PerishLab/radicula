@@ -32,10 +32,6 @@ impl Permit {
             _permit: self,
         }
     }
-
-    pub(crate) fn finish<T>(self, output: T) -> Result<T, Failure<T>> {
-        crate::scope::finish(self, output)
-    }
 }
 
 impl Drop for Permit {

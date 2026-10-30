@@ -1,4 +1,7 @@
-use crate::{Async, Error, Failure, Held, Mode, Permit, Policy, Status, Wait, state::Entry};
+mod state;
+pub(crate) use state::Entry;
+
+use crate::{Async, Error, Failure, Held, Mode, Permit, Policy, Status, Wait};
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -43,25 +46,8 @@ impl Gate {
     }
 
     pub fn acquire(&self, wait: Wait) -> Result<Permit, Error> {
-        let deadline = wait.start()?;
-        loop {
-            deadline.check()?;
-            if let Some(permit) = self.attempt()? {
-                return Ok(permit);
-            }
-            let duration = deadline.pause()?;
-            let state = self
-                .entry
-                .state
-                .lock()
-                .unwrap_or_else(|error| error.into_inner());
-            let _ = self
-                .entry
-                .changed
-                .wait_timeout(state, duration)
-                .unwrap_or_else(|error| error.into_inner());
-            deadline.retry()?;
-        }
+        self.entry.acquire(self.mode, wait)?;
+        Ok(Permit::new(self.clone()))
     }
 
     pub fn guard<T>(&self, action: impl FnOnce() -> T) -> Result<T, Failure<T>> {
@@ -78,6 +64,7 @@ impl Gate {
         Ok(permit.attach(initialize()))
     }
 
+    #[cfg(feature = "tokio")]
     pub(crate) fn attempt(&self) -> Result<Option<Permit>, Error> {
         self.entry
             .attempt(self.mode)
