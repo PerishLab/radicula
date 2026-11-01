@@ -1,4 +1,4 @@
-use super::{Captured, Completed, Error, Failure, Observer, State};
+use super::{Captured, Completed, Error, Failure, Observer, Outcome, State};
 
 pub struct Session<T> {
     task: Option<tokio::task::JoinHandle<Result<Completed<T>, Failure<T>>>>,
@@ -24,7 +24,7 @@ impl<T> Session<T> {
         self.observer.cancel();
     }
 
-    pub async fn wait(&mut self) -> Result<Completed<T>, Error<T>> {
+    pub async fn wait(&mut self) -> Outcome<T> {
         let task = self.task.as_mut().ok_or(Error::Consumed)?;
         let result = task.await;
         self.task.take();
@@ -47,8 +47,8 @@ impl Session<Captured> {
         let completed = self.wait().await?;
         Ok(std::process::Output {
             status: completed.status,
-            stdout: completed.streams.stdout,
-            stderr: completed.streams.stderr,
+            stdout: completed.streams.stdout.unwrap_or_default(),
+            stderr: completed.streams.stderr.unwrap_or_default(),
         })
     }
 }

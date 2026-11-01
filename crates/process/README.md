@@ -59,10 +59,14 @@ let output = session.output().await?;
 
 `Runner::start(command, Streams::new(input, stdout, stderr), cancel)` takes owned,
 `Send + Unpin + 'static` asynchronous streams. It replaces the command's stdio
-with pipes, concurrently copies input and drains both output streams, closes
+according to the stream fields: `Some` selects a pipe and `None` selects the OS
+null device. It concurrently copies selected input and drains selected outputs, closes
 child stdin at EOF, and flushes output sinks without shutting them down. The
 completion returns those same streams, allowing the caller to inspect or reuse
-them. Capture uses an owned byte cursor and byte vectors. Borrowed synchronous
+them. `Streams::new` selects all three pipes; `Streams::stdout(sink)` selects
+only stdout, with null stdin and stderr. Capture uses an owned byte cursor
+(or null stdin for empty input) and two byte vectors. An absent output stream
+means unobserved output, not that the child produced zero bytes. Borrowed synchronous
 streams require an owning adapter or a caller refactor; they are not silently
 moved to detached worker threads.
 
@@ -72,8 +76,8 @@ Synchronous callers use `blocking`.
 The nonzero child exit status is a normal completion, preserving stdout/stderr;
 the caller decides business success. The required nonzero time budget starts
 when the driven task begins and bounds its process/I/O phase. One shared output
-budget counts bytes observed across stdout and stderr, before forwarding to
-sinks. Input has no implicit byte limit. Sinks must obey the asynchronous polling
+budget counts bytes observed across selected stdout and stderr pipes, before forwarding to
+sinks. Output sent to the null device does not consume that budget. Input has no implicit byte limit. Sinks must obey the asynchronous polling
 contract. Expiry, cancellation, I/O failure and output overflow stop the owned
 child and wait for it. Cleanup is separate from the execution budget and depends
 on the OS. No process-tree containment or hard real-time guarantee is made.
@@ -93,7 +97,9 @@ cleanup; owned child kill-on-drop is best effort there. The caller must keep
 its business custody until its required cleanup facts are confirmed. This
 library does not coordinate or release another capability's permits.
 
-`blocking(command, bytes, cancel)` drives a private current-thread runtime and
+`stream(command, streams, cancel)` drives a private current-thread runtime and
+returns the completion with the owned streams.
+`blocking(command, bytes, cancel)` uses the same synchronous path and
 returns the captured standard output. It refuses an already entered Tokio
 runtime; asynchronous callers use sessions. Both forms use the same I/O and
 cleanup implementation. The runner records no global ledger and retries no

@@ -49,7 +49,7 @@ async fn failure() {
         panic!("operation failure")
     };
     assert!(matches!(failure.cause, Cause::Io(_)));
-    assert!(failure.streams.stdout.writes > 0);
+    assert!(failure.streams.stdout.as_ref().unwrap().writes > 0);
     assert!(failure.child.is_none());
     assert!(failure.cleanup.is_none());
     assert!(failure.status.is_some());
