@@ -88,7 +88,6 @@ fn search() {
 #[cfg(unix)]
 #[test]
 fn alias() {
-    use std::os::unix::ffi::OsStringExt;
     let root = tempfile::tempdir().unwrap();
     let target = root.path().join("contents");
     std::fs::write(&target, b"hash identity").unwrap();
@@ -96,7 +95,14 @@ fn alias() {
     std::os::unix::fs::symlink(&target, &alias).unwrap();
     let tool = Tool::at(alias.clone()).unwrap();
     assert_eq!(tool.path, alias);
-    assert_eq!(tool.content().unwrap(), target);
+    assert_eq!(tool.content().unwrap(), target.canonicalize().unwrap());
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn native() {
+    use std::os::unix::ffi::OsStringExt;
+    let root = tempfile::tempdir().unwrap();
     let raw = root.path().join(OsString::from_vec(b"raw-\xff".to_vec()));
     std::fs::write(&raw, b"bytes").unwrap();
     let tool = Tool::at(raw.clone()).unwrap();
