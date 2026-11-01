@@ -1,6 +1,16 @@
 [comment]
 allow = false
 
+[[boundary]]
+allow = ["word"]
+note = "The isolated which::sys::Sys adapter implements the upstream trait's required associated type and method names; captured PATH/PATHEXT must not fall back to ambient process state."
+paths = ["crates/process/src/search/system.rs"]
+
+[[boundary]]
+allow = ["word"]
+note = "The isolated test sink implements the upstream tokio::io::AsyncWrite method names to exercise owned stream failure and panic."
+paths = ["crates/process/tests/support/sink.rs"]
+
 [[grant]]
 paths = ["crates/git/src/lib.rs"]
 syntax = "embed"
