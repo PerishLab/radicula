@@ -1,0 +1,33 @@
+{
+  "schema": "radicula.git/v1",
+  "policy": "radicula.git-environment/v1",
+  "environment": {
+    "remove": [
+      "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_CEILING_DIRECTORIES", "GIT_COMMON_DIR",
+      "GIT_CONFIG", "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS", "GIT_DIR",
+      "GIT_DISCOVERY_ACROSS_FILESYSTEM", "GIT_GRAFT_FILE", "GIT_IMPLICIT_WORK_TREE",
+      "GIT_INDEX_FILE", "GIT_NAMESPACE", "GIT_NO_REPLACE_OBJECTS", "GIT_OBJECT_DIRECTORY",
+      "GIT_PREFIX", "GIT_QUARANTINE_PATH", "GIT_REPLACE_REF_BASE", "GIT_SHALLOW_FILE", "GIT_WORK_TREE"
+    ],
+    "retain_examples": ["GIT_SSH", "GIT_SSH_COMMAND", "SSH_AUTH_SOCK", "GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM", "GIT_CONFIG_NOSYSTEM", "PATH", "PATHEXT"],
+    "order": ["detach", "explicit-overrides", "execute"]
+  },
+  "paths": {"framing": "nul", "unix": "bytes", "other": "utf8-strict"},
+  "ancestry": {"0": true, "1": false, "other": "error"},
+  "vectors": [
+    {"input": "", "count": 0},
+    {"input": "A\u0000plain\u0000", "count": 1, "path": "plain"},
+    {"input": "M\u0000tab\tline\nfile\u0000", "count": 1, "path": "tab\tline\nfile"},
+    {"input": "R100\u0000old\u0000new\u0000", "count": 1, "path": "new", "previous": "old", "score": 100},
+    {"input": "C050\u0000source\u0000copy\u0000", "count": 1, "path": "copy", "previous": "source", "score": 50},
+    {"input": "M100\u0000rewritten\u0000", "count": 1, "path": "rewritten", "score": 100},
+    {"input": "A\u0000unterminated", "error": true},
+    {"input": "A\u0000\u0000", "error": true},
+    {"input": "R100\u0000old\u0000", "error": true},
+    {"input": "R\u0000old\u0000new\u0000", "error": true},
+    {"input": "C101\u0000old\u0000new\u0000", "error": true},
+    {"input": "A1\u0000plain\u0000", "error": true},
+    {"input": "Q\u0000plain\u0000", "error": true},
+    {"input": "\u0000", "error": true}
+  ]
+}
