@@ -1,7 +1,7 @@
 #![cfg(feature = "tokio")]
 
 use radicula_process::Cancel;
-use radicula_process::asynchronous::{Cause, Error, Limits, Runner, State};
+use radicula_process::asynchronous::{Cause, Error, Limits, Runner, State, Streams};
 use std::io::{Read, Write};
 use std::process::Command;
 use std::time::Duration;
@@ -38,6 +38,9 @@ fn worker() {
             std::io::stdout().write_all(b"owned output").unwrap();
             std::io::stderr().write_all(b"owned diagnostic").unwrap();
             std::process::exit(7);
+        }
+        "noisy" => {
+            std::io::stderr().write_all(&vec![b'e'; 2_097_152]).unwrap();
         }
         "duplex" => {
             std::io::stderr().write_all(&vec![b'e'; 2_097_152]).unwrap();
@@ -93,7 +96,11 @@ async fn budget() {
     assert!(failure.child.is_none());
     assert!(failure.cleanup.is_none());
     assert!(failure.status.is_some());
-    assert!(failure.streams.stdout.len() + failure.streams.stderr.len() <= 1024);
+    assert!(
+        failure.streams.stdout.as_ref().unwrap().len()
+            + failure.streams.stderr.as_ref().unwrap().len()
+            <= 1024
+    );
     assert_eq!(observer.state(), State::Settled);
 }
 
@@ -211,4 +218,24 @@ async fn reaped() {
     assert!(matches!(failure.cause, Cause::Cancelled));
     assert_eq!(observer.state(), State::Settled);
     assert!(!std::path::Path::new("/proc").join(pid).exists());
+}
+
+#[test]
+fn discarded() {
+    let completed = runner(3000, 1024)
+        .stream(command("noisy"), Streams::stdout(Vec::new()), Cancel::new())
+        .unwrap();
+    assert!(completed.status.success());
+    assert!(completed.streams.input.is_none());
+    assert!(completed.streams.stderr.is_none());
+    assert!(completed.streams.stdout.unwrap().ends_with(b"done"));
+    let Error::Operation(failure) = runner(3000, 1024)
+        .blocking(command("noisy"), Vec::new(), Cancel::new())
+        .unwrap_err()
+    else {
+        panic!("operation failure")
+    };
+    assert!(matches!(failure.cause, Cause::Output));
+    assert!(failure.status.is_some());
+    assert!(failure.child.is_none());
 }

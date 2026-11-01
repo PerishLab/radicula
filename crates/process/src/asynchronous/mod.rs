@@ -3,7 +3,7 @@ mod model;
 mod observe;
 mod session;
 
-pub use model::{Captured, Cause, Completed, Error, Failure, Limits, Streams};
+pub use model::{Captured, Cause, Completed, Error, Failure, Limits, Outcome, Streams};
 pub use observe::{Observer, State};
 pub use session::Session;
 
@@ -46,11 +46,7 @@ impl Runner {
     }
 
     pub fn capture(&self, command: Command, input: Vec<u8>, cancel: Cancel) -> Session<Captured> {
-        self.start(
-            command,
-            Streams::new(std::io::Cursor::new(input), Vec::new(), Vec::new()),
-            cancel,
-        )
+        self.start(command, captured(input), cancel)
     }
 
     pub fn blocking(
@@ -59,6 +55,25 @@ impl Runner {
         input: Vec<u8>,
         cancel: Cancel,
     ) -> Result<std::process::Output, Error<Captured>> {
+        let completed = self.stream(command, captured(input), cancel)?;
+        Ok(std::process::Output {
+            status: completed.status,
+            stdout: completed.streams.stdout.unwrap_or_default(),
+            stderr: completed.streams.stderr.unwrap_or_default(),
+        })
+    }
+
+    pub fn stream<I, O, E>(
+        &self,
+        command: Command,
+        streams: Streams<I, O, E>,
+        cancel: Cancel,
+    ) -> Outcome<Streams<I, O, E>>
+    where
+        I: AsyncRead + Send + Unpin + 'static,
+        O: AsyncWrite + Send + Unpin + 'static,
+        E: AsyncWrite + Send + Unpin + 'static,
+    {
         if tokio::runtime::Handle::try_current().is_ok() {
             return Err(Error::Active);
         }
@@ -66,6 +81,14 @@ impl Runner {
             .enable_all()
             .build()
             .map_err(Error::Runtime)?;
-        runtime.block_on(async { self.capture(command, input, cancel).output().await })
+        runtime.block_on(async { self.start(command, streams, cancel).wait().await })
+    }
+}
+
+fn captured(input: Vec<u8>) -> Captured {
+    Streams {
+        input: (!input.is_empty()).then(|| std::io::Cursor::new(input)),
+        stdout: Some(Vec::new()),
+        stderr: Some(Vec::new()),
     }
 }

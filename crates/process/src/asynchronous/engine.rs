@@ -24,9 +24,9 @@ where
     }
     let mut command = tokio::process::Command::from(command);
     command
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
+        .stdin(disposition(streams.input.is_some()))
+        .stdout(disposition(streams.stdout.is_some()))
+        .stderr(disposition(streams.stderr.is_some()))
         .kill_on_drop(true);
     let mut child = match command.spawn() {
         Ok(child) => child,
@@ -93,24 +93,17 @@ where
     O: AsyncWrite + Unpin,
     E: AsyncWrite + Unpin,
 {
-    let mut input = child.stdin.take().expect("piped stdin");
-    let output = child.stdout.take().expect("piped stdout");
-    let errors = child.stderr.take().expect("piped stderr");
+    let input = child.stdin.take();
+    let output = child.stdout.take();
+    let errors = child.stderr.take();
     let bytes = Arc::new(AtomicU64::new(0));
-    let send = async {
-        tokio::io::copy(&mut streams.input, &mut input)
-            .await
-            .map_err(Cause::Io)?;
-        input.shutdown().await.map_err(Cause::Io)?;
-        drop(input);
-        Ok(())
-    };
+    let send = supply(input, streams.input.as_mut());
     let wait = async { child.wait().await.map_err(Cause::Io) };
     let drain = async {
         tokio::try_join!(
             send,
-            transfer(output, &mut streams.stdout, bytes.clone(), limit),
-            transfer(errors, &mut streams.stderr, bytes, limit)
+            transfer(output, streams.stdout.as_mut(), bytes.clone(), limit),
+            transfer(errors, streams.stderr.as_mut(), bytes, limit)
         )?;
         Ok(())
     };
@@ -118,7 +111,44 @@ where
     Ok(status)
 }
 
+fn disposition(pipe: bool) -> Stdio {
+    if pipe { Stdio::piped() } else { Stdio::null() }
+}
+
+async fn supply<I: AsyncRead + Unpin>(
+    pipe: Option<tokio::process::ChildStdin>,
+    source: Option<&mut I>,
+) -> Result<(), Cause> {
+    match (pipe, source) {
+        (Some(mut pipe), Some(source)) => {
+            tokio::io::copy(source, &mut pipe)
+                .await
+                .map_err(Cause::Io)?;
+            pipe.shutdown().await.map_err(Cause::Io)
+        }
+        (None, None) => Ok(()),
+        _ => Err(mismatch()),
+    }
+}
+
+fn mismatch() -> Cause {
+    Cause::Io(std::io::Error::other("stream disposition mismatch"))
+}
+
 async fn transfer(
+    source: Option<impl AsyncRead + Unpin>,
+    sink: Option<&mut (impl AsyncWrite + Unpin)>,
+    bytes: Arc<AtomicU64>,
+    limit: u64,
+) -> Result<(), Cause> {
+    match (source, sink) {
+        (Some(source), Some(sink)) => drain(source, sink, bytes, limit).await,
+        (None, None) => Ok(()),
+        _ => Err(mismatch()),
+    }
+}
+
+async fn drain(
     mut source: impl AsyncRead + Unpin,
     sink: &mut (impl AsyncWrite + Unpin),
     bytes: Arc<AtomicU64>,

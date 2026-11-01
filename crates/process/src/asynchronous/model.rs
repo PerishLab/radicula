@@ -9,22 +9,34 @@ pub struct Limits {
 }
 
 pub struct Streams<I, O, E> {
-    pub input: I,
-    pub stdout: O,
-    pub stderr: E,
+    pub input: Option<I>,
+    pub stdout: Option<O>,
+    pub stderr: Option<E>,
 }
 
 impl<I, O, E> Streams<I, O, E> {
     pub fn new(input: I, stdout: O, stderr: E) -> Self {
         Self {
-            input,
-            stdout,
-            stderr,
+            input: Some(input),
+            stdout: Some(stdout),
+            stderr: Some(stderr),
+        }
+    }
+}
+
+impl<O> Streams<tokio::io::Empty, O, tokio::io::Sink> {
+    pub fn stdout(stdout: O) -> Self {
+        Self {
+            input: None,
+            stdout: Some(stdout),
+            stderr: None,
         }
     }
 }
 
 pub type Captured = Streams<std::io::Cursor<Vec<u8>>, Vec<u8>, Vec<u8>>;
+
+pub type Outcome<T> = Result<Completed<T>, Error<T>>;
 
 pub struct Completed<T> {
     pub status: ExitStatus,
