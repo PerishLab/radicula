@@ -6,6 +6,7 @@ root = true
 
 [dependency.groups]
 lock = ["radicula-lock", "radicula-lock-macros"]
+git = ["radicula-git"]
 
 [release]
 authority = "https://releases.radicula.perish.uk"
@@ -17,7 +18,7 @@ targets = [
 
 [release.cargo]
 registry = "perish"
-packages = ["radicula-lock", "radicula-lock-macros"]
+packages = ["radicula-lock", "radicula-lock-macros", "radicula-git"]
 
 [[layout.seat]]
 path = "crates/*"

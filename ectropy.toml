@@ -2,6 +2,10 @@
 allow = false
 
 [[grant]]
+paths = ["crates/git/src/lib.rs"]
+syntax = "embed"
+
+[[grant]]
 paths = [
     "crates/*/src/**/*.rs",
     "crates/*/tests/**/*.rs",

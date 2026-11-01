@@ -1,0 +1,15 @@
+[package]
+name = "radicula-git"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+license-file.workspace = true
+repository.workspace = true
+description = "Composable Git contexts and lossless command result boundaries"
+readme = "README.md"
+publish = ["perish"]
+
+[dev-dependencies]
+serde_json = "1"
+tempfile = "3"
+tokio = { version = "1", features = ["rt", "macros", "process"] }
