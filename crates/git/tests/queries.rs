@@ -162,16 +162,26 @@ fn renamed() {
 #[cfg(unix)]
 #[test]
 fn unusual() {
-    use std::os::unix::ffi::{OsStrExt, OsStringExt};
+    changed(std::ffi::OsStr::new("tab\tline\nunicode-文"));
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn native() {
+    use std::os::unix::ffi::OsStrExt;
+    changed(std::ffi::OsStr::from_bytes(b"tab\tline\nraw-\xff"));
+}
+
+#[cfg(unix)]
+fn changed(name: &std::ffi::OsStr) {
     let repo = Repo::new();
     repo.commit();
-    let name = std::ffi::OsString::from_vec(b"tab\tline\nraw-\xff".to_vec());
-    repo.file(&name, b"bytes");
+    repo.file(name, b"bytes");
     success(repo.run(&["add", "--all"]));
     let found = radicula_git::Reply::new(repo.git.changes(Source::Staged).output().unwrap())
         .changes()
         .unwrap();
-    assert_eq!(found[0].path.as_os_str().as_bytes(), name.as_bytes());
+    assert_eq!(found[0].path.as_os_str(), name);
 }
 
 #[tokio::test(flavor = "current_thread")]
