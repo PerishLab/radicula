@@ -1,0 +1,19 @@
+[package]
+name = "radicula-http"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+license-file.workspace = true
+repository.workspace = true
+description = "Synchronous HTTP transport and a JSON request facade"
+readme = "README.md"
+publish = ["perish"]
+
+[dependencies]
+anyhow = "1.0"
+serde_json = "1.0"
+ureq = "3"
+zeroize = "1.8"
+
+[dev-dependencies]
+serde_json = "1"
