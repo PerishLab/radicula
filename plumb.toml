@@ -5,6 +5,7 @@ ns = "radicula"
 root = true
 
 [dependency.groups]
+config = ["radicula-config", "radicula-config-macros"]
 lock = ["radicula-lock", "radicula-lock-macros"]
 git = ["radicula-git"]
 process = ["radicula-process"]
@@ -21,7 +22,7 @@ targets = [
 
 [release.cargo]
 registry = "perish"
-packages = ["radicula-lock", "radicula-lock-macros", "radicula-git", "radicula-process", "radicula-http", "radicula-template"]
+packages = ["radicula-lock", "radicula-lock-macros", "radicula-git", "radicula-process", "radicula-http", "radicula-template", "radicula-config", "radicula-config-macros"]
 
 [[layout.seat]]
 path = "crates/*"
