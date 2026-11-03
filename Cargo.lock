@@ -318,6 +318,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "radicula-template"
+version = "0.0.0"
+
+[[package]]
 name = "ring"
 version = "0.17.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"

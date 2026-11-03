@@ -9,6 +9,7 @@ lock = ["radicula-lock", "radicula-lock-macros"]
 git = ["radicula-git"]
 process = ["radicula-process"]
 http = ["radicula-http"]
+template = ["radicula-template"]
 
 [release]
 authority = "https://releases.radicula.perish.uk"
@@ -20,7 +21,7 @@ targets = [
 
 [release.cargo]
 registry = "perish"
-packages = ["radicula-lock", "radicula-lock-macros", "radicula-git", "radicula-process", "radicula-http"]
+packages = ["radicula-lock", "radicula-lock-macros", "radicula-git", "radicula-process", "radicula-http", "radicula-template"]
 
 [[layout.seat]]
 path = "crates/*"
