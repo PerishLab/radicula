@@ -1,0 +1,19 @@
+[package]
+name = "radicula-config-macros"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+license-file.workspace = true
+repository.workspace = true
+description = "Derive support for the Radicula configuration capability"
+readme = "README.md"
+publish = ["perish"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2.workspace = true
+quote.workspace = true
+syn.workspace = true
+proc-macro-crate = "3"

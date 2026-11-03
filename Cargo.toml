@@ -10,6 +10,7 @@ license-file = "LICENSE"
 repository = "https://github.com/PerishLab/radicula"
 
 [workspace.dependencies]
+radicula-config-macros = { path = "crates/config-macros", version = "=0.0.0", registry = "perish" }
 radicula-lock-macros = { path = "crates/lock-macros", version = "=0.0.0", registry = "perish" }
 proc-macro2 = "1"
 quote = "1"
