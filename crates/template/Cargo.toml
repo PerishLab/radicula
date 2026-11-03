@@ -1,0 +1,10 @@
+[package]
+name = "radicula-template"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+license-file.workspace = true
+repository.workspace = true
+description = "Strict text substitution with caller-owned variables"
+readme = "README.md"
+publish = ["perish"]
