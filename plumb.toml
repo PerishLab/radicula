@@ -12,6 +12,7 @@ process = ["radicula-process"]
 http = ["radicula-http"]
 template = ["radicula-template"]
 context = ["radicula-context"]
+trace = ["radicula-trace", "radicula-trace-macros"]
 
 [release]
 authority = "https://releases.radicula.perish.uk"
@@ -23,12 +24,12 @@ targets = [
 
 [release.cargo]
 registry = "perish"
-packages = ["radicula-lock", "radicula-lock-macros", "radicula-git", "radicula-process", "radicula-http", "radicula-template", "radicula-config", "radicula-config-macros", "radicula-context"]
+packages = ["radicula-lock", "radicula-lock-macros", "radicula-git", "radicula-process", "radicula-http", "radicula-template", "radicula-config", "radicula-config-macros", "radicula-context", "radicula-trace", "radicula-trace-macros"]
 
 [[layout.seat]]
 path = "crates/*"
 anchor = ["Cargo.toml"]
-note = "Orthogonal public root libraries with their own API contracts and tests."
+note = "Public libraries with distinct API contracts and tests in one closed root workspace."
 
 [[layout.seat]]
 path = ".cargo"

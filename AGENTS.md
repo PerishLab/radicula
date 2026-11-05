@@ -7,18 +7,19 @@ Radicula publishes orthogonal public libraries directly from `crates/*` and,
 when needed, `packages/*`. It has no umbrella library, CLI, API or application.
 Keep the repository only as large as the actual libraries require.
 
-Every orthogonal public capability is a strict root of the PerishLab library
-dependency graph. A capability may require several technical crates, such as
-a runtime library and its procedural macros. Dependencies within that capability
-must be explicitly declared and verified by Plumb before they are introduced.
+Radicula is a closed root workspace in the PerishLab library graph. Its Rust
+libraries may depend on one another as a DAG; their public responsibilities
+remain distinct. No library may reach another PerishLab product library,
+including through third-party packages. Cargo manifests own the real edges;
+Plumb verifies their complete closure before delivery. Technical groups describe
+capabilities and grant no dependency exceptions.
 The boundary covers normal, build, dev, proc-macro, optional and platform
-branches, including paths through third-party packages and generated-code
-requirements. Different capabilities in this repository must not depend on
-each other, and no capability may depend on another PerishLab product.
-Technical grouping grants no exemption for cycles or unknown closure evidence.
-Do not create placeholder crates or declarations for an anticipated grouping.
+branches, including generated-code requirements. Internal cycles refuse and
+unqualified closure evidence remains unknown. Do not add redundant edge lists,
+merge unrelated groups or disable root checking to admit an edge.
 Execution of released domain CLIs for checking, delivery and distribution is
-outside the library graph.
+outside the library graph. This Rust contract claims no unsupported language
+or target coverage.
 
 The repository has one shared version and release. Do not introduce independent
 package versions or release protocols.
