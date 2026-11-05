@@ -1,0 +1,24 @@
+[package]
+name = "radicula-trace"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+license-file.workspace = true
+repository.workspace = true
+description = "Scoped trace records over explicit execution context"
+readme = "README.md"
+publish = ["perish"]
+
+autotests = false
+
+[features]
+macros = ["dep:radicula-trace-macros"]
+
+[dependencies]
+radicula-context.workspace = true
+radicula-trace-macros = { workspace = true, optional = true }
+pin-project-lite = "0.2.17"
+
+[[test]]
+name = "trace"
+path = "tests/main.rs"

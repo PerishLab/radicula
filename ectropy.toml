@@ -2,6 +2,11 @@
 allow = false
 
 [[boundary]]
+allow = ["fanout"]
+note = "The user-defined crates directory is a flat catalogue of independently published Rust packages, including optional procedural macro packages. Preserve crates/{context,trace,trace-macros,...} rather than introducing artificial package groups; every package source and test module retains the ordinary fanout and depth limits."
+paths = ["crates"]
+
+[[boundary]]
 allow = ["word"]
 note = "The isolated which::sys::Sys adapter implements the upstream trait's required associated type and method names; captured PATH/PATHEXT must not fall back to ambient process state."
 paths = ["crates/process/src/search/system.rs"]
