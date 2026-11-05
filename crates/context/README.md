@@ -81,6 +81,8 @@ versions or dynamic-library boundaries do not promise one TLS or compatible
 Rust type identity. There is no global engine, automatic baggage discovery,
 string-key registry, deadline, wire format or cross-process propagation.
 
-The package shares Radicula's repository version and release. It has no domain
+Pinned destruction uses `pin-project-lite` 0.2.17 or a compatible later version.
+The requirement is a minimum, not an exact version pin. The package shares
+Radicula's repository version and release. It has no domain
 or sibling-capability dependencies, including its development and platform
 branches. It provides no old Plumb path, alias or compatibility facade.
