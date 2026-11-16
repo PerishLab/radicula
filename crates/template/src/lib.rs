@@ -1,5 +1,8 @@
 use std::collections::BTreeMap;
 
+mod template;
+pub use template::Template;
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum Error {
     Unknown { name: String },

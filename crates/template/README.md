@@ -1,6 +1,6 @@
 # radicula-template
 
-Two explicit text substitution protocols over caller-owned variables.
+Three explicit text substitution protocols over caller-owned variables.
 The library uses only the standard library and has no dependencies, features,
 IO, environment reads or expression execution. It is independent of every
 other Radicula capability and domain product.
@@ -21,7 +21,13 @@ unknown names, an unclosed placeholder, an empty name or a bare closing brace.
 expression languages untouched. It refuses unknown, empty or unclosed marked
 placeholders. Names match exactly, including whitespace and Unicode.
 
-Both operations substitute each input placeholder once. Inserted values are
+`Template::new(text, names)` compiles strict `{{name}}` placeholders against
+explicit permitted names. `render` supplies their values later. Dotted names
+are ordinary exact keys; whitespace is significant. Unknown, empty or unclosed
+placeholders and unmatched `}}` refuse. Single braces remain literal. This
+protocol does not change the escapes understood by `fill`.
+
+All protocols substitute each input placeholder once. Inserted values are
 literal text, including empty strings and braces; they are never parsed again.
 Callers own template selection, variables, resource names, escaping for their
 output medium and any interpretation of the rendered text.
