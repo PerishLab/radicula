@@ -1,4 +1,4 @@
-use super::{Cause, Completed, Failure, Limits, Observer, State, Streams};
+use super::{Cause, Completed, Failure, Observer, State, Streams};
 use std::process::{Command, ExitStatus, Stdio};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -6,9 +6,9 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::process::Child;
 
 pub(super) async fn execute<I, O, E>(
-    command: Command,
+    mut command: Command,
     mut streams: Streams<I, O, E>,
-    limits: Limits,
+    policy: super::Policy,
     end: super::observe::End,
 ) -> Result<Completed<Streams<I, O, E>>, Failure<Streams<I, O, E>>>
 where
@@ -21,6 +21,9 @@ where
     if observer.cancel.cancelled() {
         observer.set(State::Settled);
         return Err(failure(Cause::Cancelled, streams));
+    }
+    if policy.group {
+        super::group::configure(&mut command);
     }
     let mut command = tokio::process::Command::from(command);
     command
@@ -35,8 +38,12 @@ where
             return Err(failure(Cause::Io(error), streams));
         }
     };
+    let group = policy
+        .group
+        .then(|| super::group::Group::new(child.id().unwrap()));
+    let limits = policy.limits;
     let result = tokio::select! {
-        result = exchange(&mut child, &mut streams, limits.output) => result,
+        result = exchange(&mut child, &mut streams, limits.output, group.as_ref()) => result,
         _ = tokio::time::sleep(limits.time) => Err(Cause::Time),
         _ = observer.cancel.wait() => Err(Cause::Cancelled),
     };
@@ -45,13 +52,22 @@ where
             observer.set(State::Settled);
             Ok(Completed { status, streams })
         }
-        Err(cause) => Err(cleanup(child, failure(cause, streams), observer).await),
+        Err(cause) => Err(cleanup(child, failure(cause, streams), observer, group.as_ref()).await),
     }
 }
 
-async fn cleanup<T>(mut child: Child, mut failed: Failure<T>, observer: Observer) -> Failure<T> {
+async fn cleanup<T>(
+    mut child: Child,
+    mut failed: Failure<T>,
+    observer: Observer,
+    group: Option<&super::group::Group>,
+) -> Failure<T> {
     observer.set(State::Stopping);
-    match stop(&mut child).await {
+    let stopped = match group {
+        Some(group) => group.close(&mut child, &mut failed.status).await,
+        None => stop(&mut child).await,
+    };
+    match stopped {
         Ok(status) => {
             failed.status = Some(status);
             observer.set(State::Settled);
@@ -87,6 +103,7 @@ async fn exchange<I, O, E>(
     child: &mut Child,
     streams: &mut Streams<I, O, E>,
     limit: u64,
+    group: Option<&super::group::Group>,
 ) -> Result<ExitStatus, Cause>
 where
     I: AsyncRead + Unpin,
@@ -98,7 +115,13 @@ where
     let errors = child.stderr.take();
     let bytes = Arc::new(AtomicU64::new(0));
     let send = supply(input, streams.input.as_mut());
-    let wait = async { child.wait().await.map_err(Cause::Io) };
+    let wait = async {
+        match group {
+            Some(group) => group.wait(child).await,
+            None => child.wait().await,
+        }
+        .map_err(Cause::Io)
+    };
     let drain = async {
         tokio::try_join!(
             send,

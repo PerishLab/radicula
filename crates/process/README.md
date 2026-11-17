@@ -80,7 +80,7 @@ budget counts bytes observed across selected stdout and stderr pipes, before for
 sinks. Output sent to the null device does not consume that budget. Input has no implicit byte limit. Sinks must obey the asynchronous polling
 contract. Expiry, cancellation, I/O failure and output overflow stop the owned
 child and wait for it. Cleanup is separate from the execution budget and depends
-on the OS. No process-tree containment or hard real-time guarantee is made.
+on the OS. The default runner makes no process-tree containment or hard real-time guarantee.
 
 `Session::wait` borrows the session. Dropping that waiting future keeps the
 session and join result available; it does not imply cancellation or completion.
@@ -104,3 +104,19 @@ returns the captured standard output. It refuses an already entered Tokio
 runtime; asynchronous callers use sessions. Both forms use the same I/O and
 cleanup implementation. The runner records no global ledger and retries no
 business operation.
+
+`Runner::group(limits)` opts into Linux process-group custody. It starts a fresh
+process group and stops remaining group members when the leader exits, including
+normal nonzero or signal exits. Cancellation, timeout and I/O/output failure use
+the same cleanup path. The leader remains unreaped until the group has been
+signalled, preserving its numeric identity; cleanup never signals that group
+again after reaping. Completion also requires observing no live group members.
+Zombie members cannot write and do not prevent completion. Linux `/proc` must
+permit process observation; unreadable, malformed or exhausted observations and
+a group still live after a two-second drain produce uncertain cleanup.
+
+This is an owned process group, not a sandbox: descendants can deliberately
+escape with a new session or group. Supervisor loss, runtime shutdown and task
+panic retain the existing uncertain/best-effort contract. Other platforms refuse
+this constructor. `Runner::new` retains direct-child behavior. No systemd service,
+global registry or caller-specific directory policy is introduced.

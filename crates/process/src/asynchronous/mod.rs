@@ -1,4 +1,5 @@
 mod engine;
+mod group;
 mod model;
 mod observe;
 mod session;
@@ -13,7 +14,13 @@ use tokio::io::{AsyncRead, AsyncWrite};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Runner {
+    policy: Policy,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct Policy {
     limits: Limits,
+    group: bool,
 }
 
 impl Runner {
@@ -21,7 +28,21 @@ impl Runner {
         if limits.time.is_zero() {
             return Err(crate::Error::Invalid("zero time budget"));
         }
-        Ok(Self { limits })
+        Ok(Self {
+            policy: Policy {
+                limits,
+                group: false,
+            },
+        })
+    }
+
+    pub fn group(limits: Limits) -> Result<Self, crate::Error> {
+        if !cfg!(target_os = "linux") {
+            return Err(crate::Error::Invalid("process groups require Linux"));
+        }
+        let mut runner = Self::new(limits)?;
+        runner.policy.group = true;
+        Ok(runner)
     }
 
     pub fn start<I, O, E>(
@@ -39,7 +60,7 @@ impl Runner {
         let task = tokio::spawn(engine::execute(
             command,
             streams,
-            self.limits,
+            self.policy,
             observe::End(observer.clone()),
         ));
         Session::new(task, observer)
