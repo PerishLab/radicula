@@ -10,6 +10,7 @@ lock = ["radicula-lock", "radicula-lock-macros"]
 git = ["radicula-git"]
 process = ["radicula-process"]
 http = ["radicula-http"]
+oidc = ["radicula-oidc"]
 template = ["radicula-template"]
 context = ["radicula-context"]
 trace = ["radicula-trace", "radicula-trace-macros"]
@@ -24,7 +25,7 @@ targets = [
 
 [release.cargo]
 registry = "perish"
-packages = ["radicula-lock", "radicula-lock-macros", "radicula-git", "radicula-process", "radicula-http", "radicula-template", "radicula-config", "radicula-config-macros", "radicula-context", "radicula-trace", "radicula-trace-macros"]
+packages = ["radicula-oidc", "radicula-lock", "radicula-lock-macros", "radicula-git", "radicula-process", "radicula-http", "radicula-template", "radicula-config", "radicula-config-macros", "radicula-context", "radicula-trace", "radicula-trace-macros"]
 
 [[layout.seat]]
 path = "crates/*"
