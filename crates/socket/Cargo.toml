@@ -1,0 +1,10 @@
+[package]
+name = "radicula-socket"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+license-file.workspace = true
+repository.workspace = true
+description = "Blocking TCP client connections with explicit per-operation timeouts"
+readme = "README.md"
+publish = ["perish"]
