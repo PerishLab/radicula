@@ -866,6 +866,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "radicula-document"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "radicula-git"
 version = "0.0.0"
 dependencies = [

@@ -1,0 +1,734 @@
+{
+  "version": 1,
+  "name": "radicula.document.conformance/v1",
+  "errors": [
+    "escape",
+    "index",
+    "kind",
+    "missing",
+    "number",
+    "pointer",
+    "root",
+    "syntax"
+  ],
+  "cases": [
+    {
+      "name": "read-root",
+      "document": "{\"a\":1}",
+      "op": {
+        "read": ""
+      },
+      "expect": {
+        "presence": "present",
+        "value": {
+          "a": 1
+        }
+      }
+    },
+    {
+      "name": "read-null",
+      "document": "{\"a\":null}",
+      "op": {
+        "read": "/a"
+      },
+      "expect": {
+        "presence": "present",
+        "value": null
+      }
+    },
+    {
+      "name": "read-false",
+      "document": "{\"a\":false}",
+      "op": {
+        "read": "/a"
+      },
+      "expect": {
+        "presence": "present",
+        "value": false
+      }
+    },
+    {
+      "name": "read-zero",
+      "document": "{\"a\":0}",
+      "op": {
+        "read": "/a"
+      },
+      "expect": {
+        "presence": "present",
+        "value": 0
+      }
+    },
+    {
+      "name": "read-empty-string",
+      "document": "{\"a\":\"\"}",
+      "op": {
+        "read": "/a"
+      },
+      "expect": {
+        "presence": "present",
+        "value": ""
+      }
+    },
+    {
+      "name": "read-empty-array",
+      "document": "{\"a\":[]}",
+      "op": {
+        "read": "/a"
+      },
+      "expect": {
+        "presence": "present",
+        "value": []
+      }
+    },
+    {
+      "name": "read-missing",
+      "document": "{\"a\":1}",
+      "op": {
+        "read": "/b"
+      },
+      "expect": {
+        "presence": "missing"
+      }
+    },
+    {
+      "name": "read-literal-dot",
+      "document": "{\"x.y\":1,\"x\":{\"y\":2}}",
+      "op": {
+        "read": "/x.y"
+      },
+      "expect": {
+        "presence": "present",
+        "value": 1
+      }
+    },
+    {
+      "name": "read-escaped-slash",
+      "document": "{\"a/b\":1}",
+      "op": {
+        "read": "/a~1b"
+      },
+      "expect": {
+        "presence": "present",
+        "value": 1
+      }
+    },
+    {
+      "name": "read-escaped-tilde",
+      "document": "{\"m~n\":1}",
+      "op": {
+        "read": "/m~0n"
+      },
+      "expect": {
+        "presence": "present",
+        "value": 1
+      }
+    },
+    {
+      "name": "read-empty-key",
+      "document": "{\"\":1}",
+      "op": {
+        "read": "/"
+      },
+      "expect": {
+        "presence": "present",
+        "value": 1
+      }
+    },
+    {
+      "name": "read-array-index",
+      "document": "{\"list\":[10,20]}",
+      "op": {
+        "read": "/list/1"
+      },
+      "expect": {
+        "presence": "present",
+        "value": 20
+      }
+    },
+    {
+      "name": "read-past-end",
+      "document": "{\"list\":[10,20]}",
+      "op": {
+        "read": "/list/2"
+      },
+      "expect": {
+        "presence": "missing"
+      }
+    },
+    {
+      "name": "reject-invalid-escape",
+      "document": "{}",
+      "op": {
+        "read": "/a~2"
+      },
+      "expect": {
+        "error": "escape"
+      }
+    },
+    {
+      "name": "reject-relative-path",
+      "document": "{}",
+      "op": {
+        "read": "a"
+      },
+      "expect": {
+        "error": "pointer"
+      }
+    },
+    {
+      "name": "reject-padded-index",
+      "document": "{\"list\":[10,20]}",
+      "op": {
+        "read": "/list/01"
+      },
+      "expect": {
+        "error": "index"
+      }
+    },
+    {
+      "name": "reject-dash-index",
+      "document": "{\"list\":[10]}",
+      "op": {
+        "read": "/list/-"
+      },
+      "expect": {
+        "error": "index"
+      }
+    },
+    {
+      "name": "reject-kind-mismatch",
+      "document": "{\"n\":1}",
+      "op": {
+        "read": "/n/deep"
+      },
+      "expect": {
+        "error": "kind"
+      }
+    },
+    {
+      "name": "reject-unsafe-integer",
+      "document": "{\"n\":9007199254740992}",
+      "op": {
+        "read": ""
+      },
+      "expect": {
+        "error": "number"
+      }
+    },
+    {
+      "name": "reject-unsafe-exponent-integer",
+      "document": "1e20",
+      "op": {
+        "read": ""
+      },
+      "expect": {
+        "error": "number"
+      }
+    },
+    {
+      "name": "reject-unsafe-fraction-integer",
+      "document": "9007199254740992.0",
+      "op": {
+        "read": ""
+      },
+      "expect": {
+        "error": "number"
+      }
+    },
+    {
+      "name": "keep-safe-fraction-integer",
+      "document": "{\"n\":9007199254740991.0}",
+      "op": {
+        "read": "/n"
+      },
+      "expect": {
+        "presence": "present",
+        "value": 9007199254740991.0
+      }
+    },
+    {
+      "name": "keep-fraction",
+      "document": "{\"n\":1.5}",
+      "op": {
+        "read": "/n"
+      },
+      "expect": {
+        "presence": "present",
+        "value": 1.5
+      }
+    },
+    {
+      "name": "text-compact",
+      "document": "{ \"b\" : 1.5 , \"a\" : [ ] }",
+      "op": {
+        "text": true
+      },
+      "expect": {
+        "text": "{\"a\":[],\"b\":1.5}"
+      }
+    },
+    {
+      "name": "reject-set-unsafe-integer",
+      "document": "{}",
+      "op": {
+        "set": {
+          "path": "/n",
+          "value": -9007199254740992
+        }
+      },
+      "expect": {
+        "error": "number",
+        "document": {}
+      }
+    },
+    {
+      "name": "set-replace",
+      "document": "{\"a\":null}",
+      "op": {
+        "set": {
+          "path": "/a",
+          "value": {
+            "b": 1
+          }
+        }
+      },
+      "expect": {
+        "document": {
+          "a": {
+            "b": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "set-null",
+      "document": "{\"a\":1}",
+      "op": {
+        "set": {
+          "path": "/a",
+          "value": null
+        }
+      },
+      "expect": {
+        "document": {
+          "a": null
+        }
+      }
+    },
+    {
+      "name": "set-absent-key",
+      "document": "{\"a\":1}",
+      "op": {
+        "set": {
+          "path": "/b",
+          "value": 2
+        }
+      },
+      "expect": {
+        "document": {
+          "a": 1,
+          "b": 2
+        }
+      }
+    },
+    {
+      "name": "set-array-element",
+      "document": "{\"list\":[10,20]}",
+      "op": {
+        "set": {
+          "path": "/list/1",
+          "value": 30
+        }
+      },
+      "expect": {
+        "document": {
+          "list": [
+            10,
+            30
+          ]
+        }
+      }
+    },
+    {
+      "name": "set-root",
+      "document": "{\"a\":1}",
+      "op": {
+        "set": {
+          "path": "",
+          "value": [
+            1
+          ]
+        }
+      },
+      "expect": {
+        "document": [
+          1
+        ]
+      }
+    },
+    {
+      "name": "set-absent-parent",
+      "document": "{\"a\":1}",
+      "op": {
+        "set": {
+          "path": "/gone/deep",
+          "value": 2
+        }
+      },
+      "expect": {
+        "error": "missing",
+        "document": {
+          "a": 1
+        }
+      }
+    },
+    {
+      "name": "set-past-end",
+      "document": "{\"list\":[10]}",
+      "op": {
+        "set": {
+          "path": "/list/1",
+          "value": 20
+        }
+      },
+      "expect": {
+        "error": "missing",
+        "document": {
+          "list": [
+            10
+          ]
+        }
+      }
+    },
+    {
+      "name": "remove-key",
+      "document": "{\"a\":1,\"b\":2}",
+      "op": {
+        "remove": "/a"
+      },
+      "expect": {
+        "document": {
+          "b": 2
+        }
+      }
+    },
+    {
+      "name": "remove-array-element",
+      "document": "{\"list\":[10,20,30]}",
+      "op": {
+        "remove": "/list/0"
+      },
+      "expect": {
+        "document": {
+          "list": [
+            20,
+            30
+          ]
+        }
+      }
+    },
+    {
+      "name": "remove-root",
+      "document": "{\"a\":1}",
+      "op": {
+        "remove": ""
+      },
+      "expect": {
+        "error": "root",
+        "document": {
+          "a": 1
+        }
+      }
+    },
+    {
+      "name": "remove-absent",
+      "document": "{\"a\":1}",
+      "op": {
+        "remove": "/b"
+      },
+      "expect": {
+        "error": "missing",
+        "document": {
+          "a": 1
+        }
+      }
+    },
+    {
+      "name": "apply-order",
+      "document": "{\"a\":1}",
+      "op": {
+        "apply": [
+          {
+            "set": {
+              "path": "/b",
+              "value": 2
+            }
+          },
+          {
+            "remove": "/a"
+          },
+          {
+            "set": {
+              "path": "/list",
+              "value": [
+                3
+              ]
+            }
+          },
+          {
+            "set": {
+              "path": "/list/0",
+              "value": 4
+            }
+          }
+        ]
+      },
+      "expect": {
+        "document": {
+          "b": 2,
+          "list": [
+            4
+          ]
+        }
+      }
+    },
+    {
+      "name": "apply-atomic",
+      "document": "{\"a\":1}",
+      "op": {
+        "apply": [
+          {
+            "set": {
+              "path": "/b",
+              "value": 2
+            }
+          },
+          {
+            "remove": "/c"
+          }
+        ]
+      },
+      "expect": {
+        "error": "missing",
+        "index": 1,
+        "document": {
+          "a": 1
+        }
+      }
+    },
+    {
+      "name": "apply-empty",
+      "document": "[1]",
+      "op": {
+        "apply": []
+      },
+      "expect": {
+        "document": [
+          1
+        ]
+      }
+    },
+    {
+      "name": "read-past-safe-index",
+      "document": "[1]",
+      "op": {
+        "read": "/18446744073709551616"
+      },
+      "expect": {
+        "presence": "missing"
+      }
+    },
+    {
+      "name": "read-past-end-index",
+      "document": "[1]",
+      "op": {
+        "read": "/1"
+      },
+      "expect": {
+        "presence": "missing"
+      }
+    },
+    {
+      "name": "read-deep-past-safe-index",
+      "document": "[[1]]",
+      "op": {
+        "read": "/18446744073709551616/0"
+      },
+      "expect": {
+        "presence": "missing"
+      }
+    },
+    {
+      "name": "set-past-safe-index",
+      "document": "[1]",
+      "op": {
+        "set": {
+          "path": "/18446744073709551616",
+          "value": 2
+        }
+      },
+      "expect": {
+        "error": "missing",
+        "document": [
+          1
+        ]
+      }
+    },
+    {
+      "name": "set-past-end-index",
+      "document": "[1]",
+      "op": {
+        "set": {
+          "path": "/1",
+          "value": 2
+        }
+      },
+      "expect": {
+        "error": "missing",
+        "document": [
+          1
+        ]
+      }
+    },
+    {
+      "name": "remove-past-safe-index",
+      "document": "[1]",
+      "op": {
+        "remove": "/18446744073709551616"
+      },
+      "expect": {
+        "error": "missing",
+        "document": [
+          1
+        ]
+      }
+    },
+    {
+      "name": "remove-past-end-index",
+      "document": "[1]",
+      "op": {
+        "remove": "/1"
+      },
+      "expect": {
+        "error": "missing",
+        "document": [
+          1
+        ]
+      }
+    },
+    {
+      "name": "remove-under-scalar",
+      "document": "1",
+      "op": {
+        "remove": "/a"
+      },
+      "expect": {
+        "error": "kind",
+        "document": 1
+      }
+    },
+    {
+      "name": "remove-under-null",
+      "document": "null",
+      "op": {
+        "remove": "/a"
+      },
+      "expect": {
+        "error": "kind",
+        "document": null
+      }
+    },
+    {
+      "name": "set-under-null",
+      "document": "null",
+      "op": {
+        "set": {
+          "path": "/a",
+          "value": 1
+        }
+      },
+      "expect": {
+        "error": "kind",
+        "document": null
+      }
+    },
+    {
+      "name": "set-object-prototype-key",
+      "document": "{}",
+      "op": {
+        "set": {
+          "path": "/__proto__",
+          "value": 1
+        }
+      },
+      "expect": {
+        "document": {
+          "__proto__": 1
+        }
+      }
+    },
+    {
+      "name": "read-object-prototype-key",
+      "document": "{\"__proto__\":1}",
+      "op": {
+        "read": "/__proto__"
+      },
+      "expect": {
+        "presence": "present",
+        "value": 1
+      }
+    },
+    {
+      "name": "apply-root-set",
+      "document": "{\"a\":1}",
+      "op": {
+        "apply": [
+          {
+            "set": {
+              "path": "",
+              "value": {
+                "b": 1
+              }
+            }
+          },
+          {
+            "set": {
+              "path": "/b",
+              "value": 2
+            }
+          }
+        ]
+      },
+      "expect": {
+        "document": {
+          "b": 2
+        }
+      }
+    },
+    {
+      "name": "apply-root-set-then-remove",
+      "document": "{\"a\":1}",
+      "op": {
+        "apply": [
+          {
+            "set": {
+              "path": "",
+              "value": {
+                "a": 1,
+                "b": 2
+              }
+            }
+          },
+          {
+            "remove": "/a"
+          }
+        ]
+      },
+      "expect": {
+        "document": {
+          "b": 2
+        }
+      }
+    }
+  ]
+}
