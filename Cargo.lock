@@ -937,6 +937,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "radicula-socket"
+version = "0.0.0"
+
+[[package]]
 name = "radicula-template"
 version = "0.0.0"
 
