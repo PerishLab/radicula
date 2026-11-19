@@ -1,0 +1,26 @@
+{
+  "name": "@perishlab/radicula-document",
+  "version": "0.0.0",
+  "description": "Typed document reads and optimistic revisioned state.",
+  "license": "MIT",
+  "type": "module",
+  "files": ["dist"],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "pnpm build && node --test tests/*.test.ts",
+    "prepack": "pnpm build"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

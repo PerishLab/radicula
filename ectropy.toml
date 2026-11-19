@@ -1,6 +1,3 @@
-[comment]
-allow = false
-
 [[boundary]]
 allow = ["fanout"]
 note = "The user-defined crates directory is a flat catalogue of independently published Rust packages, including optional procedural macro packages. Preserve crates/{context,trace,trace-macros,...} rather than introducing artificial package groups; every package source and test module retains the ordinary fanout and depth limits."
@@ -16,6 +13,9 @@ allow = ["word"]
 note = "The isolated test sink implements the upstream tokio::io::AsyncWrite method names to exercise owned stream failure and panic."
 paths = ["crates/process/tests/support/sink.rs"]
 
+[comment]
+allow = false
+
 [[grant]]
 paths = ["crates/git/src/lib.rs"]
 syntax = "embed"
@@ -24,11 +24,17 @@ syntax = "embed"
 paths = [
     "crates/*/src/**/*.rs",
     "crates/*/tests/**/*.rs",
+    "packages/*/tests/**/*.test.ts",
+    "packages/*/tests/**/*.test.tsx",
 ]
 syntax = "test"
 
 [[grant]]
-paths = ["crates/*/tests/**/*.rs"]
+paths = [
+    "crates/*/tests/**/*.rs",
+    "packages/*/tests/**/*.test.ts",
+    "packages/*/tests/**/*.test.tsx",
+]
 syntax = "environment"
 
 [limit]
@@ -43,11 +49,27 @@ path = 3
 roots = [
     "crates/*/src",
     "crates/*/tests",
+    "packages/*/src",
+    "packages/*/tests",
 ]
 
 [scan]
-exclude = ["**/target/**"]
-include = ["crates/**/*.rs"]
+exclude = [
+    "**/dist/**",
+    "**/node_modules/**",
+    "**/target/**",
+]
+include = [
+    "crates/**/*.rs",
+    "packages/**/*.css",
+    "packages/**/*.scss",
+    "packages/**/*.ts",
+    "packages/**/*.tsx",
+]
+
+[[vocabulary.term]]
+description = "The public JavaScript connection and address field specified for the document SDK's relative service base."
+name = "base_rel_path"
 
 [word]
 single = true
