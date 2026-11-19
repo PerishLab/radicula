@@ -28,6 +28,10 @@ impl From<bool> for Choice {
 }
 
 impl Choice {
+    pub fn bit(value: u8) -> Self {
+        Choice(black_box(value & 1))
+    }
+
     pub fn flag(self) -> bool {
         black_box(self.0) == 1
     }

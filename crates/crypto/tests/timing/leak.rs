@@ -1,10 +1,12 @@
 use std::hint::black_box;
 
+use radicula_crypto::x25519;
 use radicula_crypto::{Chacha20poly1305, Poly1305};
 
 use crate::control::early;
 use crate::paths::PAIRS;
 use crate::probe::{Fed, Pools, leaks, serial};
+use crate::scalar::{FIRSTS, PAIRS as CLASSES, POINT, scalars};
 use crate::tags::{AAD, KEY, NONCE, OTHERS, PLAIN, authentic, equalled, tags};
 
 #[test]
@@ -44,5 +46,24 @@ fn open() {
         &format!("open {name}"),
         30_000,
         &mut Fed::new(pools, tag, work),
+    );
+}
+
+#[test]
+fn scalar() {
+    let _held = serial();
+    let (label, first) = FIRSTS[1];
+    let (name, low, high) = CLASSES[1];
+    let pools = Pools::new(scalars(111, first), low, high);
+    let work = |key: &[u8; 32]| {
+        black_box(x25519::mul(key, &POINT));
+        if key[1] & 1 == 1 {
+            black_box(x25519::mul(key, &POINT));
+        }
+    };
+    leaks(
+        &format!("scalar {label} {name}"),
+        1_000,
+        &mut Fed::new(pools, first, work),
     );
 }

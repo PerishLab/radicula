@@ -2,6 +2,7 @@ mod control;
 mod leak;
 mod paths;
 mod probe;
+mod scalar;
 mod secret;
 mod stats;
 mod tags;

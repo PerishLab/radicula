@@ -18,6 +18,15 @@ fn flag() {
 }
 
 #[test]
+fn bit() {
+    for value in 0..=255u8 {
+        let want = value & 1 == 1;
+        assert_eq!(Choice::bit(value).flag(), want, "value {value}");
+        assert_eq!(Choice::bit(value).select(7, 9), if want { 7 } else { 9 });
+    }
+}
+
+#[test]
 fn eq() {
     assert!(ct::eq(&[], &[]).flag());
     for left in 0..=255u8 {
