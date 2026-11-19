@@ -5,7 +5,7 @@ use radicula_crypto::Hmac;
 use crate::paths::{PAIRS, SIZE, STEPS, SWITCHES, bytes, patterns, tags};
 use crate::probe::{Mix, Pools, Probe, leaks, serial};
 
-fn early(left: &[u8], right: &[u8]) -> bool {
+pub fn early(left: &[u8], right: &[u8]) -> bool {
     for (one, two) in left.iter().zip(right) {
         if black_box(one) != black_box(two) {
             return false;

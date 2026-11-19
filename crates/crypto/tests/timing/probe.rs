@@ -1,3 +1,4 @@
+use std::hint::black_box;
 use std::sync::{Mutex, MutexGuard};
 use std::time::Instant;
 
@@ -50,6 +51,32 @@ impl<T: Clone> Pools<T> {
 
     pub fn pick(&self, class: bool, pick: usize) -> T {
         self.items[if class { self.high } else { self.low }][pick].clone()
+    }
+}
+
+pub struct Fed<T, F> {
+    pools: Pools<T>,
+    scratch: T,
+    work: F,
+}
+
+impl<T, F> Fed<T, F> {
+    pub fn new(pools: Pools<T>, scratch: T, work: F) -> Self {
+        Fed {
+            pools,
+            scratch,
+            work,
+        }
+    }
+}
+
+impl<T: Clone, F: FnMut(&T)> Probe for Fed<T, F> {
+    fn prepare(&mut self, class: bool, pick: usize) {
+        self.scratch = self.pools.pick(class, pick);
+    }
+
+    fn run(&mut self) {
+        (self.work)(black_box(&self.scratch));
     }
 }
 
