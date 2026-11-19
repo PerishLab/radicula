@@ -866,6 +866,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "radicula-crypto"
+version = "0.0.0"
+dependencies = [
+ "hkdf",
+ "hmac",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "radicula-document"
 version = "0.0.0"
 dependencies = [
