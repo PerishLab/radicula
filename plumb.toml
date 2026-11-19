@@ -3,6 +3,7 @@ ns = "radicula"
 
 [dependency]
 root = true
+ecosystem = "cargo"
 
 [dependency.groups]
 config = ["radicula-config", "radicula-config-macros"]
@@ -28,6 +29,19 @@ targets = [
 [release.cargo]
 registry = "perish"
 packages = ["radicula-socket", "radicula-document", "radicula-oidc", "radicula-lock", "radicula-lock-macros", "radicula-git", "radicula-process", "radicula-http", "radicula-template", "radicula-config", "radicula-config-macros", "radicula-context", "radicula-trace", "radicula-trace-macros"]
+
+[release.npm]
+registry = "https://npm.pkg.github.com/"
+packages = ["@perishlab/radicula-document"]
+
+[[layout.seat]]
+path = "packages/*"
+anchor = ["package.json"]
+note = "Publishable JavaScript libraries in Radicula's release."
+
+[[layout.file]]
+name = ["package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".npmrc"]
+note = "JavaScript workspace and public registry configuration."
 
 [[layout.seat]]
 path = "crates/*"
