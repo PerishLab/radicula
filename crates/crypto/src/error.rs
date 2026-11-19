@@ -4,6 +4,7 @@ use core::fmt;
 pub enum Error {
     Length,
     Auth,
+    Zero,
 }
 
 impl fmt::Display for Error {
@@ -11,6 +12,7 @@ impl fmt::Display for Error {
         match self {
             Error::Length => out.write_str("length outside the range the construction defines"),
             Error::Auth => out.write_str("authentication failed"),
+            Error::Zero => out.write_str("shared secret is all zero"),
         }
     }
 }

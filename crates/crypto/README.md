@@ -1,9 +1,10 @@
 # radicula-crypto
 
-SHA-256, HMAC-SHA256, HKDF-SHA256, ChaCha20, Poly1305 and the ChaCha20-Poly1305
-AEAD, with the constant-time helpers they use, written from the specifications.
+SHA-256, HMAC-SHA256, HKDF-SHA256, ChaCha20, Poly1305, the ChaCha20-Poly1305
+AEAD and X25519, with the constant-time helpers they use, written from the
+specifications.
 `no_std`, no dependency of any kind; the only crates under `[dev-dependencies]`
-are `sha2`, `hmac`, `hkdf`, `chacha20`, `poly1305` and `chacha20poly1305`, used
+are `sha2`, `hmac`, `hkdf`, `chacha20`, `poly1305`, `chacha20poly1305` and `x25519-dalek`, used
 as differential oracles in tests, and `serde_json`, which reads the vector
 files. The ChaCha20 family types are named `Chacha20`, `Poly1305` and
 `Chacha20poly1305` because this repository allows single-word identifiers.
@@ -46,16 +47,39 @@ would matter until one has been done.
 - `Chacha20`, `Poly1305` and `Chacha20poly1305` overwrite their state with
   `ct::wipe` when dropped, and the AEAD wipes the derived Poly1305 key and the
   keystream block it came from before returning.
+- `x25519::mul` is the raw RFC 7748 function: it clamps a copy of the scalar
+  (`k[0] &= 248`, `k[31] &= 127`, `k[31] |= 64`), clears bit 255 of the
+  u-coordinate, accepts a non-canonical u, and returns whatever the ladder
+  gives, including the all-zero value for a point of small order. It does not
+  check the result.
+- `x25519::agree` is `mul` followed by a check that the shared secret is not
+  all zero; on all zero it wipes the value and returns `Error::Zero`. RFC 8446
+  section 7.4.2 requires a TLS 1.3 implementation to make this check and
+  abort, and RFC 7748 section 6.1 allows it. Protocol code must call `agree`,
+  not `mul`. The check compares with `ct::eq`; that the secret is zero is a
+  public reason to abort, so branching on it leaks nothing the peer does not
+  learn anyway. `x25519::base` is `mul` against the base point.
+- The Montgomery ladder swaps with `Choice`-based masks and reads each scalar
+  bit with `Choice::bit`; no branch or index depends on a scalar bit. The
+  ladder state and the clamped scalar copy are wiped before `mul` returns, but
+  that wiping is on the stack and no test can observe it.
+- X25519 takes a 32 byte private scalar and does not generate keys or random
+  numbers. The 64-bit multiplications in the field code are constant time on
+  current x86-64; that is a property of the target, not of the language.
 
 ## Evidence and its limits
 
-Correctness is checked against RFC 6234, RFC 4231, RFC 5869 and RFC 8439
-vectors, the NIST CAVP SHA-256 ShortMsg, LongMsg and Monte files, the
-Wycheproof HMAC-SHA256, HKDF-SHA256 and ChaCha20-Poly1305 files, and the
+Correctness is checked against RFC 6234, RFC 4231, RFC 5869, RFC 8439 and
+RFC 7748 vectors, the NIST CAVP SHA-256 ShortMsg, LongMsg and Monte files, the
+Wycheproof HMAC-SHA256, HKDF-SHA256, ChaCha20-Poly1305 and X25519 files, and the
 oracles above. `vectors/` holds the NIST files (public domain) and the
 Wycheproof files (Apache-2.0) unchanged. `vectors/rfc8439.json` is transcribed
-from the RFC text, section 2 and appendix A, and every entry was re-derived by
-an independent reference implementation before it was committed.
+from the RFC text, section 2 and appendix A, and `vectors/rfc7748.json` from
+sections 5.2 and 6.1, including the 1 and 1000 iteration results of section
+5.2; the one million iteration result is an ignored test, run with
+`cargo test --release -p radicula-crypto --test x25519 -- --ignored`. Every
+transcribed entry was re-derived by an independent reference implementation
+before it was committed.
 
 Timing is checked separately, because correct output says nothing about
 execution time. `tests/timing` is a dudect-style test: interleaved samples of
@@ -64,13 +88,19 @@ for `ct::eq`, `Hmac::verify`, `Poly1305::verify`, the rejection path of
 `Chacha20poly1305::open`, the two branches of `Choice::select` and
 `Choice::assign`, and the paths that touch secrets: the ChaCha20 block
 function and Poly1305 over fixed, random and all-zero keys, and `seal` over
-fixed, random and all-zero plaintexts. It is paired with controls that must report a leak in
-deliberately early-exiting comparisons, so a pass means the harness can see an
+fixed, random and all-zero plaintexts, and `x25519::mul` over fixed, random and
+all-zero scalars. It is paired with controls that must report a leak in
+deliberately early-exiting comparisons and in a scalar multiplication that does
+extra work for some scalars, so a pass means the harness can see an
 effect of that size on these paths. It is statistical, runs in the test
-profile, and cannot show the absence of a smaller or different leak.
+profile, and cannot show the absence of a smaller or different leak. A scalar
+multiplication costs milliseconds there, so the scalar probes take fewer
+samples in the test profile than in a release build; a ladder swap turned into
+a branch is visible in a release run and not in the test profile.
 The generated code for `ct::eq`, `Choice::select`, `Choice::assign`,
 `ct::wipe`, the comparison in `Hmac::verify`, the ChaCha20 core, Poly1305
-absorb, finish and verify, and `Chacha20poly1305::open` was read for x86-64
+absorb, finish and verify, `Chacha20poly1305::open`, and the X25519 field
+multiplication, conditional swap and ladder loop was read for x86-64
 with the compiler named in the delivering Issues; that review does not carry
 over to other targets or compiler versions.
 
