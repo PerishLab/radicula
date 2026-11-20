@@ -1,12 +1,13 @@
 use std::hint::black_box;
 
+use radicula_crypto::p256::ecdh;
 use radicula_crypto::x25519;
 use radicula_crypto::{Chacha20poly1305, Poly1305};
 
 use crate::control::early;
 use crate::paths::{PAIRS, STEPS};
 use crate::probe::{Fed, Pools, leaks, serial};
-use crate::scalar::{FIRSTS, PAIRS as CLASSES, POINT, scalars};
+use crate::scalar::{CURVES, FIRSTS, PAIRS as CLASSES, POINT, orders, peer, scalars};
 use crate::tags::{AAD, KEY, NONCE, OTHERS, PLAIN, authentic, equalled, tags};
 
 #[test]
@@ -66,6 +67,26 @@ fn scalar() {
     leaks(
         &format!("scalar {label} {name}"),
         1_000,
+        &mut Fed::new(pools, first, work),
+    );
+}
+
+#[test]
+fn agree() {
+    let _held = serial();
+    let (label, first) = CURVES[0];
+    let (name, low, high) = CLASSES[0];
+    let peer = peer();
+    let pools = Pools::new(orders(131, first), low, high);
+    let work = |key: &[u8; 32]| {
+        black_box(ecdh::agree(key, &peer).unwrap());
+        if key[0] != first[0] {
+            black_box(ecdh::agree(key, &peer).unwrap());
+        }
+    };
+    leaks(
+        &format!("agree {label} {name}"),
+        300,
         &mut Fed::new(pools, first, work),
     );
 }

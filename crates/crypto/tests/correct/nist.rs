@@ -5,7 +5,7 @@ use radicula_crypto::Sha256;
 use crate::support::hex;
 
 fn cases(name: &str) -> Vec<(usize, Vec<u8>, Vec<u8>)> {
-    let text = fs::read_to_string(format!("vectors/{name}")).unwrap();
+    let text = fs::read_to_string(format!("vectors/sha256/{name}")).unwrap();
     let mut found = Vec::new();
     let mut bits = 0;
     let mut message = Vec::new();
@@ -57,7 +57,7 @@ fn long() {
 
 #[test]
 fn monte() {
-    let text = fs::read_to_string("vectors/SHA256Monte.rsp").unwrap();
+    let text = fs::read_to_string("vectors/sha256/SHA256Monte.rsp").unwrap();
     let mut seed = Vec::new();
     let mut expected = Vec::new();
     for line in text.lines() {

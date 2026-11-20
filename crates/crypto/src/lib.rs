@@ -9,6 +9,7 @@ mod hmac;
 mod sha256;
 
 pub mod ct;
+pub mod p256;
 pub mod x25519;
 
 pub use aead::{Chacha20, Chacha20poly1305, Poly1305};
