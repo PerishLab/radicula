@@ -6,7 +6,7 @@ use serde_json::Value;
 use crate::support::hex;
 
 fn groups(name: &str) -> Vec<Value> {
-    let text = fs::read_to_string(format!("vectors/{name}")).unwrap();
+    let text = fs::read_to_string(format!("vectors/mac/{name}")).unwrap();
     let root: Value = serde_json::from_str(&text).unwrap();
     root["testGroups"].as_array().unwrap().clone()
 }

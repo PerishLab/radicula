@@ -1,23 +1,23 @@
 use std::hint::black_box;
 
-use radicula_crypto::Hmac;
 use radicula_crypto::ct::{self, Choice};
+use radicula_crypto::{Hmac, Hmac384, Hmac512};
 
-use crate::probe::{Mix, POOL, Pools, Probe, clean, serial};
+use crate::probe::{Fed, Mix, POOL, Pools, Probe, clean, serial};
 
 pub const SIZE: usize = 32;
 pub const STEPS: usize = 50;
 pub const PAIRS: [(&str, usize, usize); 2] = [("equal-first", 0, 1), ("first-last", 1, 2)];
 pub const SWITCHES: [(&str, usize, usize); 2] = [("taken-random", 0, 1), ("taken-skipped", 0, 2)];
 
-pub fn tags(base: [u8; SIZE], seed: u64) -> [Vec<[u8; SIZE]>; 3] {
+pub fn tags<const N: usize>(base: [u8; N], seed: u64) -> [Vec<[u8; N]>; 3] {
     let mut mix = Mix::new(seed);
     let mut pools = [Vec::new(), Vec::new(), Vec::new()];
     for _ in 0..POOL {
         let mut first = base;
         let mut last = base;
         first[0] ^= 1 + (mix.byte() % 255);
-        last[SIZE - 1] ^= 1 + (mix.byte() % 255);
+        last[N - 1] ^= 1 + (mix.byte() % 255);
         pools[0].push(base);
         pools[1].push(first);
         pools[2].push(last);
@@ -176,3 +176,26 @@ fn choose() {
         clean(&format!("assign {name}"), 20_000, &mut assign);
     }
 }
+
+macro_rules! wide {
+    ($name:ident, $mac:ident, $seed:expr) => {
+        #[test]
+        fn $name() {
+            let _held = serial();
+            let mut mix = Mix::new($seed);
+            let mut proto = $mac::new(&bytes(&mut mix, 32));
+            proto.update(b"message");
+            let base = proto.clone().finish();
+            for (name, low, high) in PAIRS {
+                let pools = Pools::new(tags(base, $seed + 1), low, high);
+                let work = |tag: &[u8; $mac::SIZE]| {
+                    black_box(proto.clone().verify(tag));
+                };
+                clean(name, 20_000, &mut Fed::new(pools, base, work));
+            }
+        }
+    };
+}
+
+wide!(verify384, Hmac384, 41);
+wide!(verify512, Hmac512, 51);
