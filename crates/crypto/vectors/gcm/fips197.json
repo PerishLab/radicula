@@ -1,0 +1,23 @@
+{
+  "source": "FIPS 197 (2001, updated 2023): Appendix B and C.1, C.3",
+  "encrypt": [
+    {
+      "source": "FIPS 197 Appendix B",
+      "key": "2b7e151628aed2a6abf7158809cf4f3c",
+      "input": "3243f6a8885a308d313198a2e0370734",
+      "output": "3925841d02dc09fbdc118597196a0b32"
+    },
+    {
+      "source": "FIPS 197 Appendix C.1 (AES-128)",
+      "key": "000102030405060708090a0b0c0d0e0f",
+      "input": "00112233445566778899aabbccddeeff",
+      "output": "69c4e0d86a7b0430d8cdb78070b4c55a"
+    },
+    {
+      "source": "FIPS 197 Appendix C.3 (AES-256)",
+      "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "input": "00112233445566778899aabbccddeeff",
+      "output": "8ea2b7ca516745bfeafc49904b496089"
+    }
+  ]
+}

@@ -10,8 +10,11 @@ readme = "README.md"
 publish = ["perish"]
 
 [dev-dependencies]
+aes = "0.8"
+aes-gcm = "0.10"
 chacha20 = "0.9"
 chacha20poly1305 = "0.10"
+ghash = "0.5"
 hkdf = "0.12"
 hmac = "0.12"
 poly1305 = "0.8"
