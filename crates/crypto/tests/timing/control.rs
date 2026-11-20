@@ -1,9 +1,9 @@
 use std::hint::black_box;
 
-use radicula_crypto::Hmac;
+use radicula_crypto::{Hmac, Hmac384, Hmac512};
 
 use crate::paths::{PAIRS, SIZE, STEPS, SWITCHES, bytes, patterns, tags};
-use crate::probe::{Mix, Pools, Probe, leaks, serial};
+use crate::probe::{Fed, Mix, Pools, Probe, leaks, serial};
 
 const REPEAT: usize = 8;
 
@@ -134,3 +134,26 @@ fn choose() {
         &mut Select { flags, scratch },
     );
 }
+
+macro_rules! wide {
+    ($name:ident, $mac:ident, $seed:expr) => {
+        #[test]
+        fn $name() {
+            let _held = serial();
+            let mut mix = Mix::new($seed);
+            let mut proto = $mac::new(&bytes(&mut mix, 32));
+            proto.update(b"message");
+            let base = proto.clone().finish();
+            for (name, low, high) in PAIRS {
+                let pools = Pools::new(tags(base, $seed + 1), low, high);
+                let work = |tag: &[u8; $mac::SIZE]| {
+                    black_box(early(&proto.clone().finish(), tag));
+                };
+                leaks(name, 30_000, &mut Fed::new(pools, base, work));
+            }
+        }
+    };
+}
+
+wide!(verify384, Hmac384, 71);
+wide!(verify512, Hmac512, 81);
