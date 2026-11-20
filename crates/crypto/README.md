@@ -2,15 +2,18 @@
 
 SHA-256, SHA-384, SHA-512, HMAC-SHA256, HKDF-SHA256, ChaCha20, Poly1305, the ChaCha20-Poly1305
 AEAD, X25519, AES-128 and AES-256 with GHASH and the GCM AEAD, the NIST P-256
-field and group with ECDH and ECDSA-P256-SHA256 verification, with the
-constant-time helpers they use, written from the specifications.
+field and group with ECDH and ECDSA-P256-SHA256 verification, and RSA signature
+verification (RSASSA-PKCS1-v1_5 and RSASSA-PSS with SHA-256, SHA-384 and SHA-512),
+with the constant-time helpers they use, written from the specifications.
 `no_std`, no dependency of any kind; the only crates under `[dev-dependencies]`
-are `sha2`, `hmac`, `hkdf`, `chacha20`, `poly1305`, `chacha20poly1305`, `x25519-dalek`, `aes`, `ghash`, `aes-gcm` and `p256` (with its `ecdsa` and `ecdh`
-features), used
+are `sha2`, `hmac`, `hkdf`, `chacha20`, `poly1305`, `chacha20poly1305`, `x25519-dalek`, `aes`, `ghash`, `aes-gcm`, `p256` (with its `ecdsa` and `ecdh`
+features), `rsa` (with its `hazmat` feature, which supplies the private-key
+operation that builds malformed encodings) and `rand_chacha`, used
 as differential oracles in tests, and `serde_json`, which reads the vector
 files. The ChaCha20 family types are named `Chacha20`, `Poly1305` and
 `Chacha20poly1305` because this repository allows single-word identifiers;
-the same holds for `Aes`, `Ghash` and `Aesgcm`.
+the same holds for `Aes`, `Ghash` and `Aesgcm`, and the RSA public key is
+`rsa::Key` and not `PublicKey`.
 This is an independent library root; it depends on no other PerishLab library.
 
 This library has not had an external audit. Do not rely on it where a failure
@@ -147,6 +150,47 @@ would matter until one has been done.
   to 3880 per second. The numbers come from an ignored test,
   `cargo test --release -p radicula-crypto --test p256 -- --ignored --nocapture`.
 
+- `rsa::Key::new(modulus, exponent)` takes big-endian bytes (leading zeros are
+  allowed) and returns `Error::Key` unless the modulus is odd with 2048 to 4096
+  significant bits and the exponent is odd and at least 3 and below 2^32. It does not
+  test that the modulus is a product of two primes or that the exponent suits it;
+  the caller takes both from a certificate it has already decided to trust. The
+  FIPS 186-4 lower bound of 2^16 on the exponent is not enforced because
+  Wycheproof's valid vectors use e = 3.
+- `Key::pkcs1(hash, message, signature)` and `Key::pss(scheme, message, signature)`
+  hash the message themselves. `Pss { hash, mgf, salt }` names the message hash,
+  the MGF1 hash (which may differ) and the salt length in bytes; the salt length is
+  never guessed from the signature. Every failure is `Error::Auth`, whatever the
+  cause: a signature that is not exactly as long as the modulus, one that is not
+  below the modulus, a padding or digest mismatch, a salt length that does not fit.
+- PKCS#1 v1.5 verification does not parse. It rebuilds the whole encoded message
+  `00 01 FF..FF 00 DigestInfo || digest` for the key size and compares all of it with
+  the recovered value, so a wrong or short padding, trailing bytes, a BER length, a
+  missing or extra NULL in the DigestInfo and the low-exponent forgeries that rely on
+  lenient parsers all fail. The NULL in the DigestInfo is required; Wycheproof
+  marks the one case without it as acceptable and this library rejects it. The
+  padding length is fixed by the key size (at least 100 bytes for the supported hashes
+  and modulus sizes), so no test can build an encoding with exactly eight padding bytes.
+- PSS verification follows RFC 8017 section 9.1.2, including a modulus whose bit
+  length minus one is a multiple of eight (the encoded message is then one byte
+  shorter than the modulus) and the check that the unused top bits are zero.
+- RSA verification is variable time: Montgomery multiplication with a conditional
+  subtraction, a bit scan of the public exponent, and comparisons that stop at the
+  first difference. It handles only public data (a public key, a message and a
+  signature). No timing test and no review of the generated code covers it, and
+  nothing here claims it is constant time.
+- Not offered: signing or any private-key operation, encryption and OAEP, DER or
+  X.509 parsing (the caller extracts the modulus and exponent), SHA-1, SHA-224,
+  SHA-512/224, SHA-512/256 and SHA-3, a mask function other than MGF1, and
+  automatic salt length detection.
+- Throughput of this portable code, release build, one core of an Intel Xeon (three
+  runs, e = 65537, SHA-256, verification only, key setup excluded): PKCS#1 v1.5 28500 to 34900
+  per second at 2048 bits, 13500 to 14900 at 3072 bits, 7900 to 8250 at 4096 bits; PSS
+  31100 to 31900, 13500 to 14100 and 7800 to 8000 per second. Key setup (the
+  Montgomery constants) takes 64 to 73 microseconds at 2048 bits and 260 to 290 at
+  4096 bits. The numbers come from an ignored test,
+  `cargo test --release -p radicula-crypto --test rsa -- --ignored --nocapture`.
+
 ## Evidence and its limits
 
 Correctness is checked against RFC 6234, RFC 4231, RFC 5869, RFC 8439 and
@@ -174,6 +218,46 @@ files, use IV and tag lengths or a key size this interface does not offer); and
 against an independent implementation. Of the 316 Wycheproof AES-GCM cases, 133
 are run (79 valid, 54 invalid); 103 use a 192 bit key and 80 a non-96-bit IV and are
 excluded by the interface, and the test asserts those counts.
+
+For RSA, `vectors/rsa/pkcs1/` holds the ten Wycheproof `rsa_signature_*` files
+unchanged (2048, 3072 and 4096 bit keys with SHA-256, SHA-384 and SHA-512, and one
+8192 bit file), `vectors/rsa/pss/` the nine `rsa_pss_*` files unchanged, and
+`vectors/rsa/cavp/` the NIST CAVP `SigVer15_186-3.rsp` and `SigVerPSS_186-3.rsp`
+unchanged. Of the 2330 PKCS#1 v1.5 cases for supported key sizes, 68 valid ones verify
+and 2253 invalid and 9 acceptable (a DigestInfo without NULL) ones are rejected; the
+258 cases of the 8192 bit file are not run because the key is refused. Of the 1215
+PSS cases, 1119 are run (758 valid, which verify, and 361 invalid, which are
+rejected) and 96 are not: the `rsa_pss_misc` groups that involve SHA-1 or SHA-224 as
+the message hash or the MGF hash. Of the CAVP records, the ones with a 2048 or 3072
+bit modulus and SHA-256, SHA-384 or SHA-512 (108 in each file, 18 pass and 90 fail)
+agree with their stated result; the 1024 bit records (90 in each file, refused as
+`Error::Key`) and the SHA-1 and SHA-224 records (72 in each file) are not run. The
+CAVP PSS records give no salt length of their own for the zero-salt blocks, so the
+salt length is taken from the file's header, and the tests assert that. Wycheproof
+and CAVP carry no key whose modulus has a bit length of the form 8n + 1, which is
+the one case in which the PSS encoded message is shorter than the modulus, so
+`vectors/rsa/generated.json` adds two such keys (2049 and 4089 bits), and three keys
+(2048, 3072 and 4096 bits) whose primes are just below a power of two, so that the
+modulus is nearly all ones and the carries in Montgomery multiplication are
+exercised, with 951 signing and tampering cases (240 valid, 711 invalid: flipped
+signatures, other messages, other salt lengths, the longest salt that fits, a
+corrupted first byte of the data block, a missing separator, a nonzero byte before it,
+a wrong trailer and an extra leading byte) produced by an independent pure Python
+program that never calls this library; it also holds eight Bleichenbacher-style low-exponent forgeries
+(e = 3, moduli of 2048, 3072 and 4096 bits, three hashes where the arithmetic allows
+it) that a parser which ignores bytes after the hash would accept. The `rsa` crate (0.9.10)
+accepts the six generated signatures whose integer is one byte longer than the
+encoded message (the 2049 and 4089 bit keys with an extra leading byte), which RFC
+8017 section 8.1.2 requires to be rejected; this library rejects them, and those six
+cases are checked against this library only. Apart from those, the `rsa` crate
+agrees with this library on every Wycheproof PKCS#1 v1.5 case, on every PSS case
+whose MGF hash equals the message hash (it cannot express another MGF hash), on the
+CAVP records, on every generated case, on random bit flips in signatures, messages
+and moduli, and on signatures it produces with the CAVP private keys. Malformed
+encodings (padding, DigestInfo, trailing bytes, PSS trailer, mask and salt layout, length
+and range of the signature) are built with the `rsa` crate's raw private-key
+operation, so they are genuine RSA signatures over deliberately wrong encoded
+messages.
 
 Timing is checked separately, because correct output says nothing about
 execution time. `tests/timing` is a dudect-style test: interleaved samples of

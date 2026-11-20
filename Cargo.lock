@@ -1006,6 +1006,8 @@ dependencies = [
  "hmac",
  "p256",
  "poly1305",
+ "rand_chacha",
+ "rsa",
  "serde_json",
  "sha2",
  "x25519-dalek",

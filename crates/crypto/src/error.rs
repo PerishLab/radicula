@@ -8,6 +8,7 @@ pub enum Error {
     Point,
     Scalar,
     Format,
+    Key,
 }
 
 impl fmt::Display for Error {
@@ -19,6 +20,7 @@ impl fmt::Display for Error {
             Error::Point => out.write_str("point is not a valid public key"),
             Error::Scalar => out.write_str("scalar outside the range the construction defines"),
             Error::Format => out.write_str("encoding is malformed"),
+            Error::Key => out.write_str("public key is outside the range the construction defines"),
         }
     }
 }

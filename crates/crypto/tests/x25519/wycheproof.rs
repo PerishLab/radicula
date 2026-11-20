@@ -5,7 +5,7 @@ use crate::support::{array, field, load};
 
 #[test]
 fn xdh() {
-    let root = load("x25519_test.json");
+    let root = load("x25519/x25519_test.json");
     let mut counts = [0usize; 4];
     for group in root["testGroups"].as_array().unwrap() {
         assert_eq!(group["curve"], "curve25519");
