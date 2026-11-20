@@ -1004,6 +1004,7 @@ dependencies = [
  "ghash",
  "hkdf",
  "hmac",
+ "p256",
  "poly1305",
  "serde_json",
  "sha2",

@@ -5,6 +5,8 @@ use radicula_crypto::Hmac;
 use crate::paths::{PAIRS, SIZE, STEPS, SWITCHES, bytes, patterns, tags};
 use crate::probe::{Mix, Pools, Probe, leaks, serial};
 
+const REPEAT: usize = 8;
+
 pub fn early(left: &[u8], right: &[u8]) -> bool {
     for (one, two) in left.iter().zip(right) {
         if black_box(one) != black_box(two) {
@@ -15,7 +17,15 @@ pub fn early(left: &[u8], right: &[u8]) -> bool {
 }
 
 fn branchy(flag: bool, left: u64, right: u64) -> u64 {
-    if flag { left } else { right }
+    if flag {
+        let mut mixed = left;
+        for _ in 0..REPEAT {
+            mixed = black_box(mixed).rotate_left(7) ^ right;
+        }
+        mixed
+    } else {
+        right
+    }
 }
 
 struct Compare {

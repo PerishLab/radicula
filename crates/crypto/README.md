@@ -1,10 +1,12 @@
 # radicula-crypto
 
 SHA-256, HMAC-SHA256, HKDF-SHA256, ChaCha20, Poly1305, the ChaCha20-Poly1305
-AEAD, X25519, AES-128 and AES-256 with GHASH and the GCM AEAD, with the
+AEAD, X25519, AES-128 and AES-256 with GHASH and the GCM AEAD, the NIST P-256
+field and group with ECDH and ECDSA-P256-SHA256 verification, with the
 constant-time helpers they use, written from the specifications.
 `no_std`, no dependency of any kind; the only crates under `[dev-dependencies]`
-are `sha2`, `hmac`, `hkdf`, `chacha20`, `poly1305`, `chacha20poly1305`, `x25519-dalek`, `aes`, `ghash` and `aes-gcm`, used
+are `sha2`, `hmac`, `hkdf`, `chacha20`, `poly1305`, `chacha20poly1305`, `x25519-dalek`, `aes`, `ghash`, `aes-gcm` and `p256` (with its `ecdsa` and `ecdh`
+features), used
 as differential oracles in tests, and `serde_json`, which reads the vector
 files. The ChaCha20 family types are named `Chacha20`, `Poly1305` and
 `Chacha20poly1305` because this repository allows single-word identifiers;
@@ -96,14 +98,52 @@ would matter until one has been done.
   AES-256. That is far below hardware-accelerated AES-GCM. There is no AES-NI or
   PCLMULQDQ path. The numbers come from an ignored test,
   `cargo test --release -p radicula-crypto --test gcm -- --ignored --nocapture`.
+- `p256::Point` is a point of NIST P-256 in complete projective coordinates
+  (Renes, Costello and Batina, Algorithms 4 and 6 for a = -3): `add` and
+  `double` are the same code for every input, including a point added to itself,
+  to its negative or to the identity, so there is no case split. The field and
+  the scalar arithmetic are one generic 4 x 64 bit Montgomery implementation
+  over p and over n with a masked conditional subtraction; inversion is Fermat
+  with a public exponent. `Point::decode` accepts only the 65 byte uncompressed
+  form with both coordinates below p and the point on the curve; compressed
+  points, other lengths and the identity are `Error::Point`, and the identity
+  has no encoding (`encode` returns `Error::Zero`). `Point::mul` takes a 256 bit
+  scalar, reads it four bits at a time and picks each table entry by scanning
+  all sixteen under a mask; it accepts any scalar, so a value of n or more is
+  taken as that integer, not reduced first.
+- `p256::ecdh::agree` takes a private scalar with 1 <= d < n (else
+  `Error::Scalar`), fully validates the peer point (else `Error::Point`) and
+  returns the x-coordinate, the format TLS uses for ECDHE. A private scalar
+  outside the range is refused before any curve work, which is public. This
+  library does not generate keys, hash the secret or do any key derivation.
+  `ecdh::public` returns the uncompressed public point.
+- `p256::ecdsa::verify` takes a DER signature and `ecdsa::ieee` takes the 64 byte
+  r || s form; both hash with SHA-256 and check 1 <= r, s < n. High-s and low-s
+  signatures are both accepted, as TLS requires. The DER parser is strict:
+  short-form lengths, minimal positive integers, nothing after the sequence;
+  anything else is `Error::Format`. Verification handles only public data and
+  is not constant time: a bitwise double-scalar multiplication with branches
+  on the scalar bits, and a DER parser that stops at the first error.
+  There is no signing in this crate. Public keys are the 65 byte SEC1 form; no
+  SPKI or compressed point parser is offered.
+- `Point` overwrites its coordinates with `ct::wipe` when dropped; stack
+  temporaries inside the scalar multiplication are wiped too, but no test can
+  observe that. The 64-bit multiplications in the field code are constant time
+  on current x86-64; that is a property of the target, not of the language.
+- Throughput of this portable code, measured in a release build on one core of an
+  Intel Xeon (the box this was developed on, three runs): ECDH `agree` 5300 to
+  5550 per second, `ecdh::public` 5340 to 5540 per second, ECDSA verify 3750
+  to 3880 per second. The numbers come from an ignored test,
+  `cargo test --release -p radicula-crypto --test p256 -- --ignored --nocapture`.
 
 ## Evidence and its limits
 
 Correctness is checked against RFC 6234, RFC 4231, RFC 5869, RFC 8439 and
 RFC 7748 and FIPS 197 vectors, the NIST CAVP SHA-256 ShortMsg, LongMsg and
 Monte files and the NIST CAVP GCM encrypt and decrypt files, the Wycheproof
-HMAC-SHA256, HKDF-SHA256, ChaCha20-Poly1305, X25519 and AES-GCM files, and the
-oracles above. `vectors/` holds the NIST files (public domain) and the
+HMAC-SHA256, HKDF-SHA256, ChaCha20-Poly1305, X25519 and AES-GCM files, the
+NIST CAVP P-256 SigVer and PKV files, the Wycheproof ECDSA-P256-SHA256 (DER and
+IEEE P1363) and ECDH P-256 (point encoding) files, and the oracles above. `vectors/` holds the NIST files (public domain) and the
 Wycheproof files (Apache-2.0) unchanged. `vectors/rfc8439.json` is transcribed
 from the RFC text, section 2 and appendix A, and `vectors/rfc7748.json` from
 sections 5.2 and 6.1, including the 1 and 1000 iteration results of section
@@ -151,6 +191,47 @@ AES round and key schedule, the GHASH multiply and the tag comparison in
 with the compiler named in the delivering Issues; that review does not carry
 over to other targets or compiler versions.
 
+For P-256, `vectors/p256/` holds the three Wycheproof files unchanged, the CAVP
+`SigVer.rsp` reduced to its `[P-256,SHA-256]` block (15 records, 3 pass and 12 fail)
+and `PKV.rsp` reduced to its `[P-256]` block (12 records, 4 pass and 8 fail, of which
+4 carry a 257 bit coordinate that cannot be written in the 65 byte form and are
+counted as rejected by shape), and `multiples.json`, k times the base point and
+k times a second point for 64 scalars (0, 1, 2, 3, 15, 16, 17, n - 1, n, n + 1, 2^255,
+all-ones, every repeated hex digit and random ones), computed by an independent
+affine implementation in Python and not by the library's formulas. Of the
+Wycheproof ECDH point cases, 330 valid ones agree and the 24 invalid and the one
+acceptable (a compressed point) case are rejected as `Error::Point`; of the
+ECDSA DER cases, 174 valid ones verify and 310 invalid ones are rejected; of the
+P1363 cases, 173 valid ones verify, 68 invalid ones are rejected and 21 with a
+signature that is not 64 bytes cannot be expressed in `ieee`'s argument type;
+the tests assert those counts. The group law is tested for a point added to itself
+against `double`, to its negative, to the identity, with the operands in either
+order, with associativity, and with operands that are results of earlier
+additions, so their Z is not 1. The `p256` crate checks point multiplication,
+ECDH and verification on random inputs, and flipped bits in messages,
+signatures and keys must be rejected by both.
+
+The timing probes for P-256 cover `ecdh::agree` over a fixed, a dense (0x7f
+repeated), a random and a sparse (the value 1) private scalar. The control is
+an extra `agree` for some scalars. The earlier control for `Choice::select` and
+`Choice::assign` used a plain `if`, which an optimising compiler turns into a
+conditional move that takes the same time on both paths, so it could not leak in a
+release build; it now repeats work behind `black_box` on the taken branch.
+Not every leak this harness was tried against was seen. Of eight deliberate leaks
+planted in the P-256 code (a skipped zero window, a skipped leading zero byte, an
+early return in the field multiplication on a zero operand, an extra doubling or an
+extra multiplication for some scalars, and branches on the carry in the conditional
+subtraction and in the field subtraction), seven were reported in a release run and five
+in the test profile; the two branches on a carry were seen in release only. A table
+read indexed by the window instead of the mask scan was seen in neither: sixteen
+entries of 96 bytes sit in the cache, and a difference in which line is touched is
+too small for this test. The mask scan and the review of the generated code are
+what hold that call site.
+The generated code for the P-256 field multiplication, the point addition and
+doubling, the table scan in `Point::mul` and the inversion was read for x86-64
+with the compiler named in the delivering Issue. Verification is not covered by
+any constant-time claim.
+
 One thing the tests cannot see: replacing the comparison inside
 `Hmac::verify`, `Poly1305::verify` or `Chacha20poly1305::open` with a plain
 slice equality leaves the output identical. For `Hmac::verify` no timing
@@ -167,3 +248,16 @@ isolated `ct::eq` probe and the read assembly are what hold that call site. A
 data-dependent extra S-box pass that fires on a state bit was seen in the release
 run and not in the test profile, because a fixed class and a random class can
 share a mean count of extra passes. Neither is evidence of absence of a leak.
+
+For P-256, some checks in the code cannot be told from their absence by any input
+a test can build, and the mutation run kept them as survivors: the explicit
+rejection of r = 0 and s = 0 (s = 0 gives the identity and fails anyway; r = 0
+matters only for a forged signature on a point whose x-coordinate is zero and
+whose discrete logarithm is known, which nobody holds for the curve point with
+x = 0), the rejection of r at or above n (the reduced x-coordinate is below n, so
+such an r never matches), and the reduction of the digest mod n before use (the
+multiplication reduces it anyway). The comparison that checks the curve equation
+could be fooled only by a value that needs a coincidence of about 2^-192, which no
+test can construct. The `Error::Zero`
+return of `ecdh::agree` for a result at infinity cannot be reached with a
+private scalar in range and a validated point, since the group has prime order.
