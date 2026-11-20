@@ -29,7 +29,7 @@ targets = [
 
 [release.cargo]
 registry = "perish"
-packages = ["radicula-socket", "radicula-document", "radicula-oidc", "radicula-lock", "radicula-lock-macros", "radicula-git", "radicula-process", "radicula-http", "radicula-template", "radicula-config", "radicula-config-macros", "radicula-context", "radicula-trace", "radicula-trace-macros"]
+packages = ["radicula-socket", "radicula-crypto", "radicula-document", "radicula-oidc", "radicula-lock", "radicula-lock-macros", "radicula-git", "radicula-process", "radicula-http", "radicula-template", "radicula-config", "radicula-config-macros", "radicula-context", "radicula-trace", "radicula-trace-macros"]
 
 [release.npm]
 registry = "https://npm.pkg.github.com/"
