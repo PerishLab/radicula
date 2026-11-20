@@ -4,9 +4,8 @@
 mod aead;
 mod error;
 mod gcm;
-mod hkdf;
-mod hmac;
-mod sha256;
+mod hash;
+mod mac;
 
 pub mod ct;
 pub mod p256;
@@ -15,6 +14,5 @@ pub mod x25519;
 pub use aead::{Chacha20, Chacha20poly1305, Poly1305};
 pub use error::Error;
 pub use gcm::{Aes, Aesgcm, Ghash};
-pub use hkdf::Hkdf;
-pub use hmac::Hmac;
-pub use sha256::Sha256;
+pub use hash::{Sha256, Sha384, Sha512};
+pub use mac::{Hkdf, Hmac};
