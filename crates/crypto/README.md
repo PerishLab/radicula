@@ -1,6 +1,6 @@
 # radicula-crypto
 
-SHA-256, HMAC-SHA256, HKDF-SHA256, ChaCha20, Poly1305, the ChaCha20-Poly1305
+SHA-256, SHA-384, SHA-512, HMAC-SHA256, HKDF-SHA256, ChaCha20, Poly1305, the ChaCha20-Poly1305
 AEAD, X25519, AES-128 and AES-256 with GHASH and the GCM AEAD, the NIST P-256
 field and group with ECDH and ECDSA-P256-SHA256 verification, with the
 constant-time helpers they use, written from the specifications.
@@ -26,13 +26,24 @@ would matter until one has been done.
   protocol truncates.
 - `Hkdf::expand` refuses more than 8160 bytes with `Error::Length` and leaves
   the output untouched. `Hkdf::new` refuses a PRK shorter than 32 bytes.
-- `Hmac` and `Hkdf` hold keyed state and `Sha256` holds buffered input; all
-  three overwrite that state with `ct::wipe` when dropped. Values returned as
+- `Hmac` and `Hkdf` hold keyed state and `Sha256`, `Sha384` and `Sha512` hold
+  buffered input; all of them overwrite that state with `ct::wipe` when dropped. Values returned as
   arrays, buffers a caller supplies, and earlier copies left behind by a move
   are not covered.
 - Message length is counted in a `u64` of bytes. Input beyond 2^61 bytes is not
   reachable and is not checked.
-- SHA-256 takes whole bytes only; bit-granular input is not offered.
+- SHA-256, SHA-384 and SHA-512 take whole bytes only; bit-granular input is not
+  offered. SHA-512/224, SHA-512/256 and SHA-3 are not offered, and `Hmac` and
+  `Hkdf` still use SHA-256 only.
+- `Sha384` and `Sha512` share one portable implementation of the SHA-512
+  compression function with 128 byte blocks; `Sha384` starts from its own
+  initial values and keeps the first 48 bytes. Nothing here claims they run in
+  constant time: no timing test covers them, and only the generated code of
+  `compress` was read (no data-dependent branch or index: every branch compares
+  a loop counter or a length). Measured on one x86-64 machine with the
+  portable code, three runs: `Sha512` and `Sha384` 340 to 470 MB/s on 1 MiB
+  input, `Sha512` 190 to 205 MB/s on 64 byte input (`cargo test --release -p
+  radicula-crypto --test sha512 -- --ignored --nocapture`).
 - `Chacha20` carries a 32-bit block counter that never wraps: once the
   keystream is used up, `apply` returns `Error::Length` and leaves the data
   alone. `Chacha20poly1305::seal` and `open` start the cipher at counter 1 and
@@ -140,7 +151,11 @@ would matter until one has been done.
 
 Correctness is checked against RFC 6234, RFC 4231, RFC 5869, RFC 8439 and
 RFC 7748 and FIPS 197 vectors, the NIST CAVP SHA-256 ShortMsg, LongMsg and
-Monte files and the NIST CAVP GCM encrypt and decrypt files, the Wycheproof
+Monte files, the NIST CAVP SHA-384 and SHA-512 ShortMsg, LongMsg and
+Monte files (`vectors/sha512/`, unchanged: 129, 128 and 100 records for each
+hash, the Monte files in the byte-oriented form), the FIPS 180-4 and RFC 6234
+examples (empty, `abc`, the 112 byte two-block message and one million `a`),
+and the NIST CAVP GCM encrypt and decrypt files, the Wycheproof
 HMAC-SHA256, HKDF-SHA256, ChaCha20-Poly1305, X25519 and AES-GCM files, the
 NIST CAVP P-256 SigVer and PKV files, the Wycheproof ECDSA-P256-SHA256 (DER and
 IEEE P1363) and ECDH P-256 (point encoding) files, and the oracles above. `vectors/` holds the NIST files (public domain) and the
