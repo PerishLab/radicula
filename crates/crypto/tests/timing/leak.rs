@@ -4,7 +4,7 @@ use radicula_crypto::x25519;
 use radicula_crypto::{Chacha20poly1305, Poly1305};
 
 use crate::control::early;
-use crate::paths::PAIRS;
+use crate::paths::{PAIRS, STEPS};
 use crate::probe::{Fed, Pools, leaks, serial};
 use crate::scalar::{FIRSTS, PAIRS as CLASSES, POINT, scalars};
 use crate::tags::{AAD, KEY, NONCE, OTHERS, PLAIN, authentic, equalled, tags};
@@ -40,7 +40,9 @@ fn open() {
     let work = |given: &[u8; 16]| {
         let mut data = PLAIN;
         let want = aead.seal(&NONCE, &AAD, &mut data).unwrap();
-        black_box(early(&want, black_box(given)));
+        for _ in 0..STEPS {
+            black_box(early(&want, black_box(given)));
+        }
     };
     leaks(
         &format!("open {name}"),
