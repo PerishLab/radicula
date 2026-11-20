@@ -3,7 +3,10 @@ use radicula_crypto::x25519::{self, BASE};
 use crate::support::{array, field, load};
 
 fn rows(name: &str) -> Vec<serde_json::Value> {
-    load("rfc7748.json")[name].as_array().unwrap().clone()
+    load("x25519/rfc7748.json")[name]
+        .as_array()
+        .unwrap()
+        .clone()
 }
 
 fn iterate(count: u64) -> [u8; 32] {
