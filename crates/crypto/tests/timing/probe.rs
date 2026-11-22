@@ -2,10 +2,10 @@ use std::hint::black_box;
 use std::sync::{Mutex, MutexGuard};
 use std::time::Instant;
 
-use crate::stats::score;
+use crate::stats::{score, sides};
 
 pub const LIMIT: f64 = 10.0;
-const ROUNDS: usize = 4;
+const ROUNDS: usize = 8;
 pub const POOL: usize = 64;
 
 static BUSY: Mutex<()> = Mutex::new(());
@@ -80,7 +80,7 @@ impl<T: Clone, F: FnMut(&T)> Probe for Fed<T, F> {
     }
 }
 
-pub fn round(count: usize, seed: u64, probe: &mut dyn Probe) -> f64 {
+pub fn round(count: usize, seed: u64, probe: &mut dyn Probe) -> (f64, [f64; 4]) {
     let mut mix = Mix::new(seed);
     let mut samples = Vec::with_capacity(count);
     for _ in 0..count / 10 {
@@ -94,14 +94,17 @@ pub fn round(count: usize, seed: u64, probe: &mut dyn Probe) -> f64 {
         probe.run();
         samples.push((class, start.elapsed().as_nanos() as f64));
     }
-    score(&samples)
+    (score(&samples), sides(&samples))
 }
 
 pub fn clean(name: &str, count: usize, probe: &mut dyn Probe) {
     let mut seen = Vec::new();
     for attempt in 0..ROUNDS {
-        let value = round(count, 0x9e37 + attempt as u64, probe);
-        eprintln!("{name}: round {attempt} t = {value:.2}");
+        let (value, mark) = round(count, 0x9e37 + attempt as u64, probe);
+        eprintln!(
+            "{name}: round {attempt} t = {value:.2} mean = {:.2} {:.2} sd = {:.2} {:.2}",
+            mark[0], mark[1], mark[2], mark[3]
+        );
         if value <= LIMIT {
             return;
         }
@@ -113,8 +116,11 @@ pub fn clean(name: &str, count: usize, probe: &mut dyn Probe) {
 pub fn leaks(name: &str, count: usize, probe: &mut dyn Probe) {
     let mut seen = Vec::new();
     for attempt in 0..ROUNDS {
-        let value = round(count, 0x7f4a + attempt as u64, probe);
-        eprintln!("{name}: round {attempt} t = {value:.2}");
+        let (value, mark) = round(count, 0x7f4a + attempt as u64, probe);
+        eprintln!(
+            "{name}: round {attempt} t = {value:.2} mean = {:.2} {:.2} sd = {:.2} {:.2}",
+            mark[0], mark[1], mark[2], mark[3]
+        );
         if value > LIMIT {
             return;
         }
