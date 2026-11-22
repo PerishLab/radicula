@@ -3,6 +3,7 @@ name = "radicula-process"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+license-file.workspace = true
 repository.workspace = true
 description = "Explicit tool identity, command contexts and owned process execution"
 readme = "README.md"
