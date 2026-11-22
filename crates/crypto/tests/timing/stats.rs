@@ -36,3 +36,16 @@ pub fn score(samples: &[(bool, f64)]) -> f64 {
     }
     worst
 }
+
+pub fn sides(samples: &[(bool, f64)]) -> [f64; 4] {
+    let take = |class: bool| -> Vec<f64> {
+        samples
+            .iter()
+            .filter(|sample| sample.0 == class)
+            .map(|sample| sample.1)
+            .collect()
+    };
+    let (one, first) = moments(&take(false));
+    let (two, second) = moments(&take(true));
+    [one, two, first.sqrt(), second.sqrt()]
+}
