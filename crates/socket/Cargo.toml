@@ -5,6 +5,6 @@ edition.workspace = true
 license.workspace = true
 license-file.workspace = true
 repository.workspace = true
-description = "Blocking TCP client connections with explicit per-operation timeouts"
+description = "Blocking TCP client connections and UDP datagrams with explicit per-operation timeouts"
 readme = "README.md"
 publish = ["perish"]
