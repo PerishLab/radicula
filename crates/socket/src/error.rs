@@ -16,6 +16,7 @@ pub enum Error {
     Timeout(Phase),
     Zero,
     Io(io::Error),
+    Unsupported,
 }
 
 impl fmt::Display for Error {
@@ -27,6 +28,7 @@ impl fmt::Display for Error {
             Self::Timeout(phase) => write!(out, "{phase:?} timed out"),
             Self::Zero => write!(out, "a timeout must not be zero"),
             Self::Io(error) => write!(out, "i/o failed: {error}"),
+            Self::Unsupported => write!(out, "unsupported on this platform"),
         }
     }
 }
