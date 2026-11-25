@@ -1,4 +1,6 @@
-use radicula_socket::{Datagram, Error, Mark};
+#[cfg(unix)]
+use radicula_socket::Mark;
+use radicula_socket::{Datagram, Error};
 use std::net::SocketAddr;
 use std::time::Duration;
 
