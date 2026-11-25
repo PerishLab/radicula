@@ -23,6 +23,11 @@ pub enum Error {
         key: String,
         why: String,
     },
+    Section {
+        path: PathBuf,
+        section: String,
+        why: String,
+    },
 }
 
 impl fmt::Display for Error {
@@ -33,6 +38,11 @@ impl fmt::Display for Error {
                 write!(out, "cannot parse {}: {source}", path.display())
             }
             Error::Env { key, why } => write!(out, "cannot parse {key}: {why}"),
+            Error::Section { path, section, why } => write!(
+                out,
+                "cannot load section {section} from {}: {why}",
+                path.display()
+            ),
         }
     }
 }
@@ -42,7 +52,7 @@ impl std::error::Error for Error {
         match self {
             Error::Read { source, .. } => Some(source),
             Error::Parse { source, .. } => Some(source),
-            Error::Env { .. } => None,
+            Error::Env { .. } | Error::Section { .. } => None,
         }
     }
 }
@@ -56,4 +66,78 @@ pub fn load<T: DeserializeOwned>(path: &Path) -> Result<T, Error> {
         path: path.to_path_buf(),
         source,
     })
+}
+
+pub fn section<T: DeserializeOwned>(path: &Path, key: &str) -> Result<Option<T>, Error> {
+    let source = Source { path };
+    let Some(text) = source.text()? else {
+        return Ok(None);
+    };
+    let table = source.root(&text)?;
+    let Some(table) = source.walk(key, table)? else {
+        return Ok(None);
+    };
+    source.decode(key, table).map(Some)
+}
+
+struct Source<'a> {
+    path: &'a Path,
+}
+
+impl Source<'_> {
+    fn text(&self) -> Result<Option<String>, Error> {
+        match std::fs::read_to_string(self.path) {
+            Ok(text) => Ok(Some(text)),
+            Err(source) if source.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(source) => Err(Error::Read {
+                path: self.path.to_path_buf(),
+                source,
+            }),
+        }
+    }
+
+    fn root(&self, text: &str) -> Result<toml::Table, Error> {
+        toml::from_str(text).map_err(|source| Error::Parse {
+            path: self.path.to_path_buf(),
+            source,
+        })
+    }
+
+    fn fail(&self, key: &str, why: impl Into<String>) -> Error {
+        Error::Section {
+            path: self.path.to_path_buf(),
+            section: key.to_string(),
+            why: why.into(),
+        }
+    }
+
+    fn parts<'a>(&self, key: &'a str) -> Result<Vec<&'a str>, Error> {
+        if key.is_empty() {
+            return Err(self.fail(key, "section path is empty"));
+        }
+        let parts: Vec<&str> = key.split('.').collect();
+        if parts.iter().any(|part| part.is_empty()) {
+            return Err(self.fail(key, "section path contains an empty segment"));
+        }
+        Ok(parts)
+    }
+
+    fn walk(&self, key: &str, mut table: toml::Table) -> Result<Option<toml::Table>, Error> {
+        for part in self.parts(key)? {
+            match table.remove(part) {
+                None => return Ok(None),
+                Some(toml::Value::Table(next)) => table = next,
+                Some(_) => {
+                    return Err(self.fail(key, format!("key `{part}` exists but is not a table")));
+                }
+            }
+        }
+        Ok(Some(table))
+    }
+
+    fn decode<T: DeserializeOwned>(&self, key: &str, table: toml::Table) -> Result<T, Error> {
+        table
+            .try_into()
+            .map_err(|source| self.fail(key, source.to_string()))
+    }
 }
