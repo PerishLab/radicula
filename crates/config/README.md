@@ -23,9 +23,13 @@ assert_eq!(held.port, 8080);
 `lookup(prefix, get)` returns the generated `SettingsPartial` and `merge`
 overlays only present fields. `resolve(file, prefix, get)` combines defaults,
 an optional TOML file and lookup. `layered(file, prefix, get, partial)` adds a
-final explicit overlay. File reads always use the supplied path. Neither the
-configuration runtime nor generated lookup captures process environment,
-selects an identity or discovers directories.
+final explicit overlay. File reads always use the supplied path. `section(path, key)` loads one
+dotted table path such as `locus.inspect` from that file and returns
+`Ok(None)` when the file or the section is missing. An unreadable file,
+invalid TOML, a key that exists but is not a table, or a section that
+fails to deserialize is an error. Neither the configuration runtime nor
+generated lookup captures process environment, selects an identity or
+discovers directories.
 
 Nested `#[cascade(section)]` fields merge recursively. A section struct has
 no application convenience methods or argument fields. `#[cascade(strict)]`
