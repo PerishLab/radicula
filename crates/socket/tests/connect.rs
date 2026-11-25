@@ -1,4 +1,6 @@
-use radicula_socket::{Error, Phase, Stream};
+#[cfg(unix)]
+use radicula_socket::Phase;
+use radicula_socket::{Error, Stream};
 use std::io::ErrorKind;
 use std::net::TcpListener;
 use std::time::Duration;
