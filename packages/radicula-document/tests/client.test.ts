@@ -15,7 +15,7 @@ function fixture() {
   const reads = [];
   const writes = [];
   const client = connect({
-    base_rel_path: "/folio",
+    base: "/folio",
     transport: {
       read: (request) => task(reads, request),
       write: (request) => task(writes, request),

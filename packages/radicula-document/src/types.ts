@@ -21,7 +21,7 @@ export type Binding = {
 };
 
 export type Address = {
-  readonly base_rel_path: string;
+  readonly base: string;
   readonly binding: Binding;
 };
 
@@ -40,7 +40,7 @@ export type Transport<I> = {
 };
 
 export type Options<I> = {
-  readonly base_rel_path?: string;
+  readonly base?: string;
   readonly transport: Transport<I>;
   readonly project: (document: Json, intent: I) => Json;
 };

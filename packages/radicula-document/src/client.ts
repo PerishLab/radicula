@@ -49,7 +49,7 @@ export class Client<I> {
     }
     if (current?.key === binding.key && current.identity === binding.identity) return;
     const address = Object.freeze({
-      base_rel_path: this.#options.base_rel_path ?? "/",
+      base: this.#options.base ?? "/",
       binding: Object.freeze({ ...binding }),
     });
     const turn: Turn<I> = { address, phase: "loading", queue: [], busy: false };
