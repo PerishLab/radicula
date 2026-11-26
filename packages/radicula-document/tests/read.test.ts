@@ -43,10 +43,10 @@ test("lazy defaults, explicit empty and null, initial loading, and missing value
   let calls = 0;
   let tone = "light";
   const client = connect({
-    base_rel_path: "/folio",
+    base: "/folio",
     transport: {
       async read(address) {
-        assert.equal(address.base_rel_path, "/folio");
+        assert.equal(address.base, "/folio");
         return { revision: "r1", document: { empty: "", null: null, count: 4 } };
       },
       async write() { assert.fail("unexpected write"); },

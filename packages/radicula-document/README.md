@@ -13,7 +13,7 @@ function preferences(
   project: Options<string>["project"],
   system: () => string,
 ) {
-  const client = connect({ base_rel_path: "/preferences", transport, project });
+  const client = connect({ base: "/preferences", transport, project });
   return { client, theme: client.string("/settings/theme", system) };
 }
 ```
@@ -21,7 +21,7 @@ function preferences(
 Pass a document key and an opaque host identity epoch to
 `client.select({ key, identity })`. This loads the matching document.
 `client.select(null)` clears the snapshot and pending state. The transport
-receives the binding and `base_rel_path`. An omitted base is `/`.
+receives the binding and `base`. An omitted base is `/`.
 Each client holds one active document. Consumers can create independent clients
 for different documents.
 

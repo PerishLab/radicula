@@ -56,3 +56,12 @@ note = "Public domain registry configuration."
 [[layout.file]]
 name = ["Cargo.toml", "Cargo.lock"]
 note = "Virtual workspace and the repository's unified dependency resolution."
+
+[[ectropy.boundary]]
+allow = ["fanout"]
+note = "The user-defined crates directory is a flat catalogue of independently published Rust packages, including optional procedural macro packages. Preserve crates/{context,trace,trace-macros,...} rather than introducing artificial package groups; every package source and test module retains the ordinary fanout and depth limits."
+paths = ["crates"]
+
+[[ectropy.grant]]
+paths = ["crates/git/src/lib.rs"]
+syntax = "embed"
